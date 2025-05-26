@@ -37,7 +37,6 @@ export default function Navbar() {
           </div>
           <nav className="hidden md:flex space-x-8">
             <Link href="#proceso" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Proceso</Link>
-            <Link href="#caracteristicas" className="text-gray-600 hover:text-blue-600 transition-colors">Características</Link>
             <Link href="#beneficios" className="text-gray-600 hover:text-blue-600 transition-colors">Beneficios</Link>
             <Link href="#precios" className="text-gray-600 hover:text-blue-600 transition-colors">Precios</Link>
             <Link href="#faq" className="text-gray-600 hover:text-blue-600 transition-colors">FAQ</Link>
@@ -52,7 +51,7 @@ export default function Navbar() {
                   <Link href="/login">Iniciar Sesión</Link>
                 </Button>
                 <Button asChild className="bg-blue-600 hover:bg-blue-700">
-                  <Link href="/contractual">Comenzar Ahora</Link>
+                  <Link href="#contacto">Comenzar Ahora</Link>
                 </Button>
               </>
             )}

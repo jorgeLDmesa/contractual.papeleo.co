@@ -5,13 +5,13 @@ import Navbar from './_components/Navbar'
 import Hero from './_components/Hero'
 import VideoSection from './_components/VideoSection'
 import ProcessSection from './_components/ProcessSection'
-import FeaturesSection from './_components/FeaturesSection'
 import BenefitsSection from './_components/BenefitsSection'
 import PricingSection from './_components/PricingSection'
 import FAQSection from './_components/FAQSection'
 import ContactSection from './_components/ContactSection'
 import CTASection from './_components/CTASection'
 import Footer from './_components/Footer'
+import { TestimonialsSectionDemo } from './_components/Testimonials'
 // import ShaderBackground from '@/components/ShaderBackground'
 
 export default function ContractualLandingPage() {
@@ -48,11 +48,11 @@ export default function ContractualLandingPage() {
         {/* Process Section */}
         <ProcessSection />
 
-        {/* Features Section */}
-        <FeaturesSection />
-
         {/* Benefits Section */}
         <BenefitsSection />
+
+        {/* Testimonials Section */}
+        <TestimonialsSectionDemo />
 
         {/* Pricing Section */}
         <PricingSection />
