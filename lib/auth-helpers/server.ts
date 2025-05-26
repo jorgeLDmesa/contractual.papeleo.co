@@ -19,7 +19,7 @@ export async function redirectToPath(path: string) {
 export async function SignOut(formData: FormData) {
   const pathName = String(formData.get('pathName')).trim();
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
 
   if (error) {
@@ -50,7 +50,7 @@ export async function signUp(formData: FormData) {
     return redirectPath; // Asegura un retorno temprano si el email es inválido
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { error, data } = await supabase.auth.signUp({
     email,
@@ -99,12 +99,12 @@ export async function signUp(formData: FormData) {
 }
 
 export async function signInWithPassword(formData: FormData) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const email = String(formData.get('email')).trim();
   const password = String(formData.get('password')).trim();
   let redirectPath: string;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error, data } = await supabase.auth.signInWithPassword({
     email,
     password
@@ -145,7 +145,7 @@ export async function requestPasswordUpdate(formData: FormData) {
     );
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: callbackURL
@@ -176,8 +176,8 @@ export async function requestPasswordUpdate(formData: FormData) {
 }
 
 export async function signInWithPasswordInvitation(formData: FormData) {
-  const supabase = createClient();
-  const cookieStore = cookies();
+  const supabase = await createClient();
+  const cookieStore = await cookies();
   const email = String(formData.get('email')).trim();
   const password = String(formData.get('password')).trim();
 

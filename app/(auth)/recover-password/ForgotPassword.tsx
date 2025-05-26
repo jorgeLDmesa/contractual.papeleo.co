@@ -11,12 +11,10 @@ import { requestPasswordUpdate } from '@/lib/auth-helpers/server'
 import { toast } from "sonner"
 
 interface ForgotPasswordProps {
-  allowEmail: boolean;
-  redirectMethod: 'client' | 'server';
   disableButton?: boolean;
 }
 
-export default function ForgotPassword({ allowEmail, redirectMethod, disableButton }: ForgotPasswordProps) {
+export default function ForgotPassword({ disableButton }: ForgotPasswordProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [userEmail, setUserEmail] = useState('')
@@ -51,7 +49,7 @@ export default function ForgotPassword({ allowEmail, redirectMethod, disableButt
           description: "Por favor, revisa tu correo electrónico para el enlace de recuperación",
         })
       }
-    } catch (err) {
+    } catch {
       setError('Error al procesar la solicitud')
     } finally {
       setIsSubmitting(false)

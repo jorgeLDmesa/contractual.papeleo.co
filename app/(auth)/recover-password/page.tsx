@@ -12,6 +12,6 @@ export default async function ForgotPasswordPage() {
   }
 
   return (
-    <ForgotPassword allowEmail={true} redirectMethod="client" disableButton={false} />
+    <ForgotPassword disableButton={false} />
   );
 }

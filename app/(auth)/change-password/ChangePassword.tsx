@@ -74,7 +74,7 @@ export default function ChangePassword() {
             router.push('/login')
           }, 2000)
         }
-      } catch (err) {
+      } catch {
         setError('Error al verificar la sesión')
       } finally {
         setIsLoading(false)
@@ -114,7 +114,7 @@ export default function ChangePassword() {
           router.push('/')
         }, 1000)
       }
-    } catch (err) {
+    } catch {
       setError('Error al cambiar la contraseña')
       setShowDialog(false)
     }

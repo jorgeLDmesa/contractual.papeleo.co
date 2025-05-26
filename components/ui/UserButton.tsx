@@ -12,9 +12,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { createClient } from "@/lib/supabase/client";
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface UserButtonProps {
-    user?: any;
+    user?: SupabaseUser;
   }
 
 export default function UserButton({ user }: UserButtonProps) {
@@ -48,7 +49,7 @@ export default function UserButton({ user }: UserButtonProps) {
         .insert([
           {
             description,
-            user_id: user.id,
+            user_id: user?.id,
           },
         ]);
 
@@ -87,7 +88,7 @@ export default function UserButton({ user }: UserButtonProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>
-            {`Hola! ${user.user_metadata.username}`}
+            {`Hola! ${user?.user_metadata?.username || 'Usuario'}`}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>Configuración</DropdownMenuItem>

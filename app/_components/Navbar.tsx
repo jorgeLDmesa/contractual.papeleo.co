@@ -3,9 +3,10 @@ import Link from "next/link"
 import { useEffect, useState } from 'react'
 import { createClient } from "@/lib/supabase/client"
 import UserButton from "@/components/ui/UserButton"
+import { User } from '@supabase/supabase-js'
 
 export default function Navbar() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -23,7 +24,7 @@ export default function Navbar() {
     return () => {
       authListener.subscription.unsubscribe()
     }
-  }, [])
+  }, [supabase.auth])
 
   return (
     <header className="relative z-50 w-full backdrop-blur-sm bg-white/80 fixed top-0 border-b border-gray-200/50">
