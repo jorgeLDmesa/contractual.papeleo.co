@@ -25,7 +25,6 @@ export default function ContractualLandingPage() {
 
   return (
     <div ref={containerRef} className="relative min-h-screen flex flex-col">
-      {/* ShaderGradient Background */}
       {/* <div className="fixed inset-0 z-0">
         <ShaderBackground 
           color1="#ffffff" 
