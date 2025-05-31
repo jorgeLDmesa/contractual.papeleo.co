@@ -12,6 +12,7 @@ import ContactSection from './_components/ContactSection'
 import CTASection from './_components/CTASection'
 import Footer from './_components/Footer'
 import { TestimonialsSectionDemo } from './_components/Testimonials'
+import { EtheralShadow } from '@/components/ui/etheral-shadow'
 // import ShaderBackground from '@/components/ShaderBackground'
 
 export default function ContractualLandingPage() {
@@ -36,6 +37,7 @@ export default function ContractualLandingPage() {
       </div> */}
 
       {/* Navbar */}
+
       <Navbar />
 
       <main className="relative z-10 flex-grow pt-16">
@@ -69,6 +71,7 @@ export default function ContractualLandingPage() {
 
       {/* Footer */}
       <Footer />
+
     </div>
   )
 }

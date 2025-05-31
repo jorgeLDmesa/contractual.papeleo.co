@@ -68,9 +68,12 @@ export default function ContractualDialog({
     const fetchDocuments = async () => {
       setIsLoading(true)
       try {
+        console.log('Fetching documents for contractMemberId:', contractMemberId);
         // Use getAllDocuments to fetch both regular and extra documents
         const result = await getAllDocuments(contractMemberId)
+        console.log('getAllDocuments result:', result);
         if (result.success && result.data) {
+          console.log('Setting document groups:', result.data);
           setDocumentGroups(result.data)
         } else {
           console.error('Error fetching documents:', result.error)
@@ -130,7 +133,7 @@ export default function ContractualDialog({
         <DialogTrigger asChild>
           {children}
         </DialogTrigger>
-        <DialogContent className="max-w-7xl w-[95vw] h-[95vh] flex flex-col p-0 gap-0">
+        <DialogContent className="w-[50vw] sm:max-w-none max-h-[85vh] overflow-y-auto">
           {/* Header Section */}
           <DialogHeader className="bg-white border-b border-gray-200 p-6 pb-6 flex-shrink-0">
             <div className="flex items-center gap-3 mb-2">
@@ -238,7 +241,7 @@ export default function ContractualDialog({
                   {/* Document Groups */}
                   <div className="space-y-6">
                     {filteredDocumentGroups.map((docGroup, index) => (
-                      <div key={`${docGroup.month}-${index}`} className="bg-white border rounded-lg p-4 space-y-4">
+                      <div key={`${docGroup.month}-${index}`} className="bg-white border rounded-lg p-6 space-y-4">
                         <h3 className="text-lg font-semibold text-gray-800">
                           {docGroup.month === 'Sin mes asignado'
                             ? 'Sin mes asignado'
@@ -246,7 +249,7 @@ export default function ContractualDialog({
                           }
                         </h3>
                         <Separator className="my-1" />
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="flex flex-wrap gap-4 justify-start items-start">
                           {docGroup.docs.map((doc: ContractualDocument) => {
                             // Display regular contractual document
                             if (doc.type !== 'contractual-extra') {
@@ -266,7 +269,8 @@ export default function ContractualDialog({
                                     id: doc.id,
                                     name: doc.name,
                                     type: doc.type,
-                                    url: doc.url
+                                    url: doc.url,
+                                    month: doc.month || undefined
                                   }}
                                   contractMemberId={contractMemberId}
                                   onDocumentUpdated={handleDocumentUpdated}

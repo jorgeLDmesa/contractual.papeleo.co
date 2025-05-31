@@ -177,7 +177,7 @@ export default function PrecontractualDialog({
         <DialogTrigger asChild>
           {children}
         </DialogTrigger>
-        <DialogContent className="max-w-7xl w-[95vw] h-[95vh] flex flex-col p-0 gap-0">
+        <DialogContent className="w-[50vw] sm:max-w-none max-h-[85vh] overflow-y-auto">
           {/* Header Section */}
           <DialogHeader className="bg-white border-b border-gray-200 p-6 pb-6 flex-shrink-0">
             <div className="flex items-center gap-3 mb-2">
@@ -320,13 +320,14 @@ export default function PrecontractualDialog({
                   </div>
 
                   {/* Documents Grid */}
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <div className="flex flex-wrap gap-6 justify-start">
                     {filteredDocuments.map(doc => (
-                      <PrecontractualCard 
-                        key={`${doc.id}-${refreshKey}`} 
-                        memberDocument={doc} 
-                        contractMemberId={contractMemberId} 
-                      />
+                      <div key={`${doc.id}-${refreshKey}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] xl:w-[280px]">
+                        <PrecontractualCard 
+                          memberDocument={doc} 
+                          contractMemberId={contractMemberId} 
+                        />
+                      </div>
                     ))}
                   </div>
                 </>

@@ -2,43 +2,90 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-// Define the document type returned by the RPC function
-type ContractDocument = {
-  contractual_document_id: string;  // This field comes from the SQL function
+// Define the document type structure
+type PrecontractualDocumentData = {
+  id: string;
   name: string;
   url: string | null;
+  type: string;
   month: string | null;
+  template_id?: number | null;
+  required_document_id: string;
+  contractual_document_id?: string;
 }
 
 export async function getPrecontractualDocuments(contractMemberId: string) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
-    // Call the get_contract_documents function with type "precontractual"
-    const { data, error } = await supabase
-      .rpc('get_contract_documents', {
-        p_contract_member_id: contractMemberId,
-        p_type: 'precontractual'
-      })
+    // First, get the contract_id from contract_members
+    const { data: memberData, error: memberError } = await supabase
+      .from('contract_members')
+      .select('contract_id')
+      .eq('id', contractMemberId)
+      .single()
     
-    if (error) {
-      console.error('Error fetching precontractual documents:', error)
-      throw new Error(error.message)
+    if (memberError || !memberData) {
+      console.error('Error fetching contract member:', memberError)
+      throw new Error('Contract member not found')
     }
     
-    console.log('Data from get_contract_documents:', data);
+    // Get required documents of type "precontractual" for this contract
+    const { data: requiredDocs, error: requiredError } = await supabase
+      .from('required_documents')
+      .select('*')
+      .eq('contract_id', memberData.contract_id)
+      .eq('type', 'precontractual')
+      .is('deleted_at', null)
+      .order('name', { ascending: true })
     
-    // Format the response to match the expected structure
+    if (requiredError) {
+      console.error('Error fetching required documents:', requiredError)
+      throw new Error(requiredError.message)
+    }
+    
+    if (!requiredDocs || requiredDocs.length === 0) {
+      return {
+        success: true,
+        data: []
+      }
+    }
+    
+    // Get the contractual_documents that have been uploaded for this member
+    const { data: contractualDocs, error: contractualError } = await supabase
+      .from('contractual_documents')
+      .select('*')
+      .eq('contract_member_id', contractMemberId)
+      .in('required_document_id', requiredDocs.map(doc => doc.id))
+    
+    if (contractualError) {
+      console.error('Error fetching contractual documents:', contractualError)
+      // Don't throw error here, just log it - we can still show required docs without uploaded ones
+    }
+    
+    // Map required documents with their uploaded counterparts
+    const documentsWithUploads = requiredDocs.map(requiredDoc => {
+      const uploadedDoc = contractualDocs?.find(
+        contractualDoc => contractualDoc.required_document_id === requiredDoc.id
+      )
+      
+      return {
+        id: requiredDoc.id,
+        name: requiredDoc.name,
+        url: uploadedDoc?.url || null,
+        type: 'precontractual',
+        month: uploadedDoc?.month || null,
+        template_id: requiredDoc.template_id || null,
+        required_document_id: requiredDoc.id,
+        contractual_document_id: uploadedDoc?.id || null
+      }
+    })
+    
+    console.log('Precontractual documents fetched successfully:', documentsWithUploads);
+    
     return {
       success: true,
-      data: data.map((doc: ContractDocument) => ({
-        id: doc.name, // Using name as ID for display purposes
-        name: doc.name,
-        url: doc.url || null,
-        type: 'precontractual',
-        month: doc.month || null,
-        contractual_document_id: doc.contractual_document_id // Map the contractual_document_id directly
-      }))
+      data: documentsWithUploads
     }
   } catch (error) {
     console.error('Error in getPrecontractualDocuments:', error)
@@ -55,7 +102,7 @@ export async function getPrecontractualDocuments(contractMemberId: string) {
  */
 export async function getContractIdFromMember(contractMemberId: string) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data, error } = await supabase
       .from('contract_members')

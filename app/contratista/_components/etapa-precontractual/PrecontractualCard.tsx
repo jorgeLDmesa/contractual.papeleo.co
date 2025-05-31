@@ -79,7 +79,7 @@ export function PrecontractualCard({ memberDocument, contractMemberId }: Precont
 
   return (
     <Card className={`
-      group relative overflow-hidden transition-all duration-200 hover:shadow-lg
+      group relative overflow-hidden transition-all duration-200 hover:shadow-lg w-full h-full
       ${isUploaded 
         ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 hover:border-green-300' 
         : 'bg-white border-gray-200 hover:border-gray-300'
@@ -91,36 +91,45 @@ export function PrecontractualCard({ memberDocument, contractMemberId }: Precont
         ${isUploaded ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-orange-500 to-red-500'}
       `} />
       
-      <CardContent className="p-6">
+      <CardContent className="p-4">
         {/* Header with icon and title */}
-        <div className="flex items-start gap-4 mb-4">
+        <div className="flex items-start gap-4 mb-3">
           <div className={`
-            p-3 rounded-xl transition-colors
+            p-2 rounded-lg transition-colors flex-shrink-0
             ${isUploaded 
               ? 'bg-green-100 text-green-700' 
               : 'bg-gray-100 text-gray-600'
             }
           `}>
-            <File className="h-5 w-5" />
+            <File className="h-4 w-4" />
           </div>
           
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 mb-2 leading-tight">
+            <h3 className="font-semibold text-gray-900 mb-1 leading-tight text-sm">
               {memberDocument.name}
             </h3>
             
-            {/* Status badge */}
-            <div className="flex items-center gap-2 mb-2">
-              {isUploaded ? (
-                <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-200">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Completado
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">
-                  <Clock className="w-3 h-3 mr-1" />
-                  Pendiente
-                </Badge>
+            {/* Status badge and month indicator in same row */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                {isUploaded ? (
+                  <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-200 text-xs">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Completado
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Pendiente
+                  </Badge>
+                )}
+              </div>
+              
+              {/* Month indicator moved to the right */}
+              {memberDocument.month && (
+                <div className="text-xs text-gray-500">
+                  Mes: {memberDocument.month}
+                </div>
               )}
             </div>
 
@@ -129,13 +138,6 @@ export function PrecontractualCard({ memberDocument, contractMemberId }: Precont
               <div className="flex items-center gap-1 text-xs text-blue-600">
                 <ExternalLink className="w-3 h-3" />
                 <span>Plantilla disponible</span>
-              </div>
-            )}
-
-            {/* Month indicator */}
-            {memberDocument.month && (
-              <div className="text-xs text-gray-500 mt-1">
-                Mes: {memberDocument.month}
               </div>
             )}
           </div>
@@ -185,11 +187,11 @@ export function PrecontractualCard({ memberDocument, contractMemberId }: Precont
           )}
         </div>
 
-        {/* Progress indicator for uploaded documents */}
+        {/* Progress indicator for uploaded documents - made more compact */}
         {isUploaded && (
-          <div className="mt-4 pt-4 border-t border-green-200">
-            <div className="flex items-center gap-2 text-sm text-green-700">
-              <CheckCircle className="w-4 h-4" />
+          <div className="mt-3 pt-3 border-t border-green-200">
+            <div className="flex items-center gap-2 text-xs text-green-700">
+              <CheckCircle className="w-3 h-3" />
               <span>Documento validado y almacenado</span>
             </div>
           </div>
