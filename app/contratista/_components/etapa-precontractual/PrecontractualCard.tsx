@@ -37,31 +37,34 @@ export function PrecontractualCard({ memberDocument, contractMemberId }: Precont
     try {
       console.log('Document for upload:', memberDocument);
       
-      // Check if we have contractual_document_id (all documents should have this from the SQL function)
-      if (!memberDocument.contractual_document_id) {
-        console.error('Missing contractual_document_id for document:', memberDocument);
-        throw new Error("ID del documento no encontrado");
-      }
-      
       const formData = new FormData();
       formData.append('file', file);
       formData.append('contractId', 'dialog'); // Since we don't have contractId in dialog context
       formData.append('memberId', contractMemberId);
-      formData.append('contractualDocumentId', memberDocument.contractual_document_id);
+      formData.append('contractualDocumentId', memberDocument.contractual_document_id || '');
+      formData.append('requiredDocumentId', memberDocument.required_document_id || memberDocument.id);
       
-      const result = await uploadPrecontractualDocument(formData);
+      // Pass the document name for AI verification
+      const result = await uploadPrecontractualDocument(formData, memberDocument.name);
       
       if (!result.success) {
-        throw new Error(result.error || "Error uploading document");
+        // If it's an AI validation failure, show the message without throwing an error
+        console.log('Upload failed:', result.error);
+        toast.error(result.error || "Error al subir el documento", {
+          duration: 6000
+        });
+        return; // Exit without throwing error
       }
       
       // Dispatch an event to notify the page about the document change
       window.dispatchEvent(new Event('precontractual-document-change'));
       
-      toast.success("Documento subido");
+      toast.success("Documento subido y verificado");
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error(error instanceof Error ? error.message : "Error al subir el documento");
+      toast.error(error instanceof Error ? error.message : "Error al subir el documento", {
+        duration: 6000
+      });
     } finally {
       setIsUploading(false);
       // Reset the input

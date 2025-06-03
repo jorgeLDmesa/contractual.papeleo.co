@@ -202,3 +202,82 @@ export async function fetchOrganizationById(organizationId: string) {
     deletedAt: typedData.deleted_at
   }
 } 
+
+/**
+ * Fetches contract progress data for an organization
+ * @param organizationId The ID of the organization
+ * @returns Contract progress data with total and completed contracts by project
+ */
+export async function fetchContractProgressByOrganization(organizationId: string) {
+  if (!organizationId) {
+    throw new Error('Organization ID is required to fetch contract progress')
+  }
+
+  const supabase = await createClient()
+  
+  // Get contract data grouped by project
+  const { data, error } = await supabase
+    .from('contractual_projects')
+    .select(`
+      id,
+      name,
+      contracts:contracts(
+        id,
+        contract_members:contract_members(count)
+      )
+    `)
+    .eq('organization_id', organizationId)
+    .is('deleted_at', null)
+
+  if (error) {
+    console.error("Error fetching contract progress:", error.message)
+    throw new Error(`Failed to fetch contract progress: ${error.message}`)
+  }
+
+  // Color palette for projects
+  const colors = [
+    "bg-blue-500",
+    "bg-green-500", 
+    "bg-purple-500",
+    "bg-orange-500",
+    "bg-red-500",
+    "bg-yellow-500",
+    "bg-pink-500",
+    "bg-indigo-500",
+    "bg-teal-500",
+    "bg-gray-500"
+  ]
+
+  let totalContracts = 0
+  let completedContracts = 0
+  const projects: Array<{
+    name: string
+    contracts: number
+    color: string
+  }> = []
+
+  data?.forEach((project, index) => {
+    const contractMembersCount = project.contracts.reduce((sum, contract) => {
+      return sum + (contract.contract_members?.[0]?.count || 0)
+    }, 0)
+    
+    const contractsCount = project.contracts.length
+    
+    if (contractsCount > 0) {
+      projects.push({
+        name: project.name,
+        contracts: contractMembersCount, // Using contract members as progress indicator
+        color: colors[index % colors.length]
+      })
+      
+      totalContracts += contractsCount
+      completedContracts += contractMembersCount
+    }
+  })
+
+  return {
+    totalContracts,
+    completedContracts,
+    projects
+  }
+} 

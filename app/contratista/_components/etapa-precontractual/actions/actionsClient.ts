@@ -4,30 +4,114 @@ import { createClient } from '@/lib/supabase/client'
 import { sanitizeFileName } from '@/lib/utils'
 
 /**
+ * Verifies a document using AI before upload
+ */
+async function verifyDocument(file: File, documentName: string): Promise<{ success: boolean; isValid?: boolean; error?: string }> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('documentName', documentName);
+
+    const response = await fetch('/api/verify-document', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+    
+    console.log('Gemini verification result:', result);
+    
+    if (!response.ok) {
+      throw new Error(result.error || 'Error verifying document');
+    }
+
+    return {
+      success: result.success,
+      isValid: result.isValid
+    };
+  } catch (error) {
+    console.error('Error verifying document:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown verification error'
+    };
+  }
+}
+
+/**
  * Uploads a precontractual document
  * Uses the contractual_document_id from the database to update the URL
  */
-export async function uploadPrecontractualDocument(formData: FormData): Promise<{ success: boolean; data?: any; error?: string }> {
+export async function uploadPrecontractualDocument(formData: FormData, documentName?: string): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
     const supabase = createClient()
     const file = formData.get('file') as File | null
     const memberId = formData.get('memberId') as string
     const contractId = formData.get('contractId') as string
     const contractualDocumentId = formData.get('contractualDocumentId') as string
+    const requiredDocumentId = formData.get('requiredDocumentId') as string
 
     console.log('Upload parameters:', {
       contractualDocumentId,
       memberId,
       contractId,
-      fileName: file?.name
+      fileName: file?.name,
+      documentName,
+      requiredDocumentId
     });
 
     if (!file) {
       throw new Error('File not provided')
     }
     
-    if (!contractualDocumentId) {
-      throw new Error('Document ID not provided')
+    // Verify document if documentName is provided
+    if (documentName) {
+      console.log('Verifying document with AI...');
+      const verification = await verifyDocument(file, documentName);
+      
+      if (!verification.success) {
+        throw new Error(verification.error || 'Error verifying document');
+      }
+      
+      if (!verification.isValid) {
+        console.log('🤖 AI validation result: Document does not match expected type');
+        return {
+          success: false,
+          error: '❌ La IA detectó que este documento no es el correcto'
+        };
+      }
+      
+      console.log('Document verified successfully');
+    }
+
+    let finalContractualDocumentId = contractualDocumentId;
+
+    // If we don't have a contractual_document_id, create one
+    if (!contractualDocumentId || contractualDocumentId === 'null') {
+      if (!requiredDocumentId) {
+        throw new Error('Required document ID not provided');
+      }
+      
+      console.log('Creating new contractual_documents record...');
+      const { data: newDoc, error: createError } = await supabase
+        .from('contractual_documents')
+        .insert({
+          contract_member_id: memberId,
+          required_document_id: requiredDocumentId,
+          url: '', // Will be updated after upload
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Error creating contractual document:', createError);
+        throw new Error(`Error creating document record: ${createError.message}`);
+      }
+
+      finalContractualDocumentId = newDoc.id;
+      console.log('Created new contractual document with ID:', finalContractualDocumentId);
     }
 
     const sanitizedFileName = sanitizeFileName(file.name)
@@ -55,14 +139,14 @@ export async function uploadPrecontractualDocument(formData: FormData): Promise<
     console.log('File uploaded, URL:', fileUrl);
 
     // 3. Update the document URL in the database using contractual_document_id
-    console.log('Updating document with ID:', contractualDocumentId);
+    console.log('Updating document with ID:', finalContractualDocumentId);
     const { data, error: updateError } = await supabase
       .from('contractual_documents')
       .update({
         url: fileUrl,
         updated_at: new Date().toISOString()
       })
-      .eq('id', contractualDocumentId)
+      .eq('id', finalContractualDocumentId)
       .select()
       .single()
 
@@ -92,7 +176,7 @@ export async function uploadPrecontractualDocument(formData: FormData): Promise<
  * Replaces an existing precontractual document
  * Uses the contractual_document_id from the database to update the URL
  */
-export async function replacePrecontractualDocument(formData: FormData): Promise<{ success: boolean; data?: any; error?: string }> {
+export async function replacePrecontractualDocument(formData: FormData, documentName?: string): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
     const supabase = createClient()
     const file = formData.get('file') as File | null
@@ -104,7 +188,8 @@ export async function replacePrecontractualDocument(formData: FormData): Promise
       contractualDocumentId,
       memberId,
       contractId,
-      fileName: file?.name
+      fileName: file?.name,
+      documentName
     });
 
     if (!file) {
@@ -113,6 +198,26 @@ export async function replacePrecontractualDocument(formData: FormData): Promise
 
     if (!contractualDocumentId) {
       throw new Error('Document ID not provided')
+    }
+
+    // Verify document if documentName is provided
+    if (documentName) {
+      console.log('Verifying replacement document with AI...');
+      const verification = await verifyDocument(file, documentName);
+      
+      if (!verification.success) {
+        throw new Error(verification.error || 'Error verifying document');
+      }
+      
+      if (!verification.isValid) {
+        console.log('🤖 AI validation result: Replacement document does not match expected type');
+        return {
+          success: false,
+          error: '❌ La IA detectó que este documento no es el correcto'
+        };
+      }
+      
+      console.log('Replacement document verified successfully');
     }
 
     const sanitizedFileName = sanitizeFileName(file.name)

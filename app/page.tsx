@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import Navbar from './_components/Navbar'
+import { Navbar1 } from '@/components/blocks/navbar'
 import Hero from './_components/Hero'
 import VideoSection from './_components/VideoSection'
 import ProcessSection from './_components/ProcessSection'
@@ -12,7 +12,7 @@ import ContactSection from './_components/ContactSection'
 import CTASection from './_components/CTASection'
 import Footer from './_components/Footer'
 import { TestimonialsSectionDemo } from './_components/Testimonials'
-import { EtheralShadow } from '@/components/ui/etheral-shadow'
+// import ShaderGradientFramer from '@/components/ui/etheral-shadow'
 // import ShaderBackground from '@/components/ShaderBackground'
 
 export default function ContractualLandingPage() {
@@ -37,10 +37,9 @@ export default function ContractualLandingPage() {
       </div> */}
 
       {/* Navbar */}
+      <Navbar1 />
 
-      <Navbar />
-
-      <main className="relative z-10 flex-grow pt-16">
+      <main className="relative z-10 flex-grow pt-12">
         {/* Hero Section */}
         <Hero />
 
@@ -71,6 +70,7 @@ export default function ContractualLandingPage() {
 
       {/* Footer */}
       <Footer />
+
 
     </div>
   )

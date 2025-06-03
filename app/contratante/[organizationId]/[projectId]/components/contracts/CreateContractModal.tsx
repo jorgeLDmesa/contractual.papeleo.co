@@ -636,45 +636,14 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
       {/* Overlay de loading para generación con IA */}
       {isGeneratingWithAI && (
         <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-12 shadow-2xl max-w-md mx-4 text-center border border-gray-200">
-            <div className="mb-8">
-              <div className="relative mx-auto w-20 h-20 mb-6">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 animate-pulse"></div>
-                <div className="absolute inset-2 rounded-full bg-white flex items-center justify-center">
-                  <Brain className="w-8 h-8 text-blue-600 animate-bounce" />
-                </div>
-              </div>
-              
-              <TextShimmerWave 
-                className="text-2xl font-bold mb-4 text-gray-900"
-                duration={1.5}
-                spread={0.8}
-              >
-                Generando Contrato Inteligente
-              </TextShimmerWave>
-              
-              <div className="space-y-3 text-gray-600">
-                <p className="text-sm font-medium">
-                  Nuestra IA está analizando su objeto contractual...
-                </p>
-                <p className="text-xs">
-                  Creando estructura legal profesional
-                </p>
-                <p className="text-xs">
-                  Optimizando términos y condiciones
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex justify-center space-x-1">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-            </div>
-            
-            <p className="text-xs text-gray-500 mt-6">
-              Este proceso puede tomar unos segundos...
-            </p>
+          <div className="text-center">
+            <TextShimmerWave 
+              className="text-4xl font-bold text-white"
+              duration={1.5}
+              spread={0.8}
+            >
+              Generando Contrato con Inteligencia Artificial...
+            </TextShimmerWave>
           </div>
         </div>
       )}

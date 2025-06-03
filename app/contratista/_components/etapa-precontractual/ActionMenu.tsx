@@ -61,20 +61,27 @@ export default function ActionMenu({ memberDocument, contractMemberId }: ActionM
       }
 
       // Execute replacement
-      const result = await replacePrecontractualDocument(formData);
+      const result = await replacePrecontractualDocument(formData, memberDocument.name);
       
       if (!result.success) {
-        throw new Error(result.error || 'Error al reemplazar el documento');
+        // If it's an AI validation failure, show the message without throwing an error
+        console.log('Replace failed:', result.error);
+        toast.error(result.error || 'Error al reemplazar el documento', {
+          duration: 6000
+        });
+        return; // Exit without throwing error
       }
       
       // Notify about the change
       window.dispatchEvent(new Event('precontractual-document-change'));
       
-      toast.success('Documento reemplazado');
+      toast.success('Documento reemplazado y verificado');
     } catch (error) {
       // Log error and show toast if needed
       console.error('Error replacing file:', error);
-      toast.error(error instanceof Error ? error.message : 'Error al reemplazar el archivo');
+      toast.error(error instanceof Error ? error.message : 'Error al reemplazar el archivo', {
+        duration: 6000
+      });
     } finally {
       setIsLoading(false);
       // Always clear the input

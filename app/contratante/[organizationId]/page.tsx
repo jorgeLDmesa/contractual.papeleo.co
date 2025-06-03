@@ -9,9 +9,11 @@ import Navbar from '@/app/_components/Navbar'
 import { getUserProjectPermissionsByModule } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { ContractualStagesBar } from './components/ContractualStagesBar'
+import { ContractProgressWithData } from './components/ContractProgress'
 import { fetchProjectsByOrganizationId, fetchOrganizationById } from './actions/actionServer'
 import { ContractualProject, Organization } from './types'
+import { Navbar1 } from '@/components/blocks/navbar'
+
 
 export default function ProjectsPage({ params }: { params: Promise<{ organizationId: string }> }) {
   const { organizationId } = use(params)
@@ -157,12 +159,12 @@ export default function ProjectsPage({ params }: { params: Promise<{ organizatio
         </ShaderGradientCanvas>
       </div> */}
       <div className="container mx-auto p-4 space-y-6">
-        <Navbar />
+        <Navbar1 />
         <h1 className="text-3xl font-bold text-center mb-8">
           {currentOrganization?.name || 'Cargando...'}
         </h1>
 
-        <ContractualStagesBar organizationId={organizationId} />
+        <ContractProgressWithData organizationId={organizationId} />
 
         <div className="flex justify-between items-center gap-4 flex-wrap">
           <SearchProjects

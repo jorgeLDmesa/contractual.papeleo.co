@@ -25,6 +25,25 @@ export interface Users {
   updated_at: string // Timestamp en formato ISO
 }
 
+// Interfaz para la tabla 'organizations'
+export interface Organizations {
+  id: string
+  name: string
+  user_id: string
+  contracts_limit: number | null
+  created_at: string | null
+  updated_at: string | null
+  deleted_at: string | null
+  signatures: Json
+  logo_url: string | null
+  pseudoname: string | null
+  direccion: string | null
+  telefono: string | null
+  email: string | null
+  legal_representant: string | null
+  legal_representant_id: string | null
+}
+
 // Interfaz para la tabla 'templates'
 export interface Templates {
   id: number
@@ -62,6 +81,11 @@ export interface Database {
         Row: Users
         Insert: Omit<Users, 'created_at' | 'updated_at'> // 'id' viene de auth, 'created_at' y 'updated_at' tienen valor por defecto
         Update: Partial<Omit<Users, 'created_at' | 'updated_at'>>
+      }
+      organizations: {
+        Row: Organizations
+        Insert: Omit<Organizations, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Organizations, 'id' | 'created_at' | 'updated_at'>>
       }
       templates: {
         Row: Templates

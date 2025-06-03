@@ -1,6 +1,6 @@
 'use client'
 
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import ContratistaNavbar from './navbar';
@@ -34,6 +34,8 @@ interface PageState {
 }
 
 export default function ContratistaPage() {
+  const router = useRouter();
+
   const [state, setState] = useState<PageState>({
     user: null,
     contracts: [],
@@ -57,10 +59,11 @@ export default function ContratistaPage() {
       
       if (!result.success) {
         if (result.error === 'Usuario no autenticado') {
-          redirect('/login');
+          router.push('/login');
           return;
         }
         toast.error(result.error);
+        setState(prev => ({ ...prev, loading: false }));
         return;
       }
 
@@ -88,7 +91,7 @@ export default function ContratistaPage() {
       setState(prev => ({ ...prev, loading: false }));
       toast.error("Error al cargar la página");
     }
-  }, [toast]);
+  }, [router]);
 
   // Función optimizada para cargar datos de un contrato específico
   const loadContractData = useCallback(async (contractMemberId: string) => {

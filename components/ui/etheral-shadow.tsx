@@ -54,9 +54,9 @@ const useInstanceId = (): string => {
     return instanceId;
 };
 
-export function EtheralShadow({
+export function Component({
     sizing = 'fill',
-    color = 'rgba(128, 128, 128, 1)',
+    color = 'rgb(125, 182, 231)',
     animation,
     noise,
     style,

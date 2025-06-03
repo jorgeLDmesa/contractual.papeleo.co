@@ -24,7 +24,7 @@ export function ProjectCard({
     <Card className="overflow-hidden">
       <CardHeader className="pb-4">
         <CardTitle className="flex justify-between items-center">
-          <Link href={`/contractual/${organizationId}/${project.id}`} className="flex-1 hover:underline">
+          <Link href={`/contratante/${organizationId}/${project.id}`} className="flex-1 hover:underline">
             <span>{project.name}</span>
           </Link>
           {canEdit && onProjectUpdated && onProjectDeleted && (
