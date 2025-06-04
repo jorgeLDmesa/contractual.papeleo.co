@@ -48,8 +48,6 @@ export default function ContratistaPage() {
     contractLoading: false
   });
 
-  const { handlePreviewMemberDocument } = useDocumentPreview();
-
   // Función optimizada para cargar datos iniciales
   const loadInitialData = useCallback(async () => {
     try {

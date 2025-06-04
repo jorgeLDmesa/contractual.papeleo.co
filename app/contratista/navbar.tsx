@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { FileText, PenTool, UserX, User as UserIcon, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
 import { uploadResignationLetter } from './actions/actionClient';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import Link from 'next/link';
@@ -48,7 +47,6 @@ export default function ContratistaNavbar({
   const [showResignationDialog, setShowResignationDialog] = useState(false);
   const [resignationFile, setResignationFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const supabase = createClient();
 
   // Check if user already has a resignation letter
   const hasResignationLetter = selectedContractData?.ending?.url && selectedContractData.ending.url !== '';
@@ -83,7 +81,7 @@ export default function ContratistaNavbar({
       } else {
         toast.error(response.error || 'Error al subir la carta de renuncia');
       }
-    } catch (error) {
+    } catch {
       toast.error('Error al procesar la solicitud');
     } finally {
       setIsUploading(false);

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUser } from '@/lib/supabase/queries';
 import { revalidatePath } from 'next/cache';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface ContractInvite {
   id: string;
@@ -29,7 +30,7 @@ export interface ContractData {
 }
 
 export interface UserContractData {
-  user: any;
+  user: SupabaseUser;
   contracts: ContractInvite[];
   signature: string | null;
 }
@@ -145,9 +146,9 @@ export async function getContractFullData(contractMemberId: string): Promise<{
     }
 
     const contractData = memberResult.data?.contracts ? {
-      id: (memberResult.data.contracts as any).id,
-      name: (memberResult.data.contracts as any).name,
-      contractDraftUrl: (memberResult.data.contracts as any).contract_draft_url
+      id: (memberResult.data.contracts as unknown as { id: string; name: string; contract_draft_url?: string }).id,
+      name: (memberResult.data.contracts as unknown as { id: string; name: string; contract_draft_url?: string }).name,
+      contractDraftUrl: (memberResult.data.contracts as unknown as { id: string; name: string; contract_draft_url?: string }).contract_draft_url
     } : null;
 
     return {
