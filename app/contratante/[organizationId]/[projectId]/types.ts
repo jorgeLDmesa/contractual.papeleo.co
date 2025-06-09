@@ -1,4 +1,17 @@
 // Tipos para las respuestas de la base de datos (snake_case)
+
+// Interface for contratante data
+export interface ContratanteData {
+  nombre?: string
+  nit?: string
+  direccion?: string
+  telefono?: string
+  email?: string
+  representante_legal?: string
+  // Allow additional string properties
+  [key: string]: string | undefined
+}
+
 export interface DbContractualProject {
   id: string
   name: string
@@ -7,7 +20,7 @@ export interface DbContractualProject {
   updated_at: string
   deleted_at?: string | null
   signature?: string | null
-  contratante_data?: any
+  contratante_data?: ContratanteData | null
 }
 
 export interface DbContract {
@@ -67,7 +80,7 @@ export interface ContractualProject {
   updatedAt: string
   deletedAt?: string | null
   signature?: string | null
-  contratanteData?: any
+  contratanteData?: ContratanteData | null
 }
 
 export interface Contract {

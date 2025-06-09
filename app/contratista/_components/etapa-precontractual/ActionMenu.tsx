@@ -1,7 +1,7 @@
 "use client"
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Loader2, MoreVertical, Eye, RefreshCw, FileText, Download } from "lucide-react";
+import { Loader2, MoreVertical, Eye, RefreshCw, FileText } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { createDocumentSignedUrl, replacePrecontractualDocument } from "./actions/actionsClient";

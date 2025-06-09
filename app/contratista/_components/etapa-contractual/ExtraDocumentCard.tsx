@@ -1,7 +1,7 @@
 "use client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileUp, Check, Loader2, Eye, MoreHorizontal, Trash2, File, CheckCircle, Clock } from "lucide-react"
+import { FileUp, Loader2, Eye, MoreHorizontal, Trash2, File, CheckCircle, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useRef, useState } from "react"
 import { toast } from "sonner"

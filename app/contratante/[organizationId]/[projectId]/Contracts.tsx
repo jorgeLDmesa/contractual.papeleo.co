@@ -6,9 +6,10 @@ import { CreateContractModal } from "./components/contracts/CreateContractModal"
 import { ContractCard } from "./components/contracts/ContractCard"
 import { SearchContracts } from "./components/contracts/SearchContracts"
 import ContractsSkeleton from "./components/contracts/ContractsSkeleton"
+import { Contract } from "./types"
 
 export default function Contracts({ projectId }: { projectId: string }) {
-  const [contracts, setContracts] = useState<any[]>([])
+  const [contracts, setContracts] = useState<Contract[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [visibleCount, setVisibleCount] = useState(21)

@@ -205,7 +205,7 @@ async function createMemberDocumentSignedUrl(fileUrl: string): Promise<{
     
     // Try each path variation until we find one that works
     let signedUrl = null;
-    let lastError: any = null;
+    let lastError: Error | null = null;
     
     for (const path of pathsToTry) {
       console.log('Trying path:', path);
@@ -224,7 +224,7 @@ async function createMemberDocumentSignedUrl(fileUrl: string): Promise<{
         }
       } catch (err) {
         console.warn(`Exception with path ${path}:`, err);
-        lastError = err;
+        lastError = err as Error;
       }
     }
     
@@ -295,7 +295,7 @@ export function handleDocumentView(contractDraftUrl: string, contractMemberId?: 
 /**
  * Utilidad para debounce en búsquedas y selecciones
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -311,10 +311,10 @@ export function debounce<T extends (...args: any[]) => any>(
  * Cache simple para datos de contratos
  */
 class ContractCache {
-  private cache = new Map<string, { data: any; timestamp: number }>();
+  private cache = new Map<string, { data: unknown; timestamp: number }>();
   private readonly TTL = 5 * 60 * 1000; // 5 minutos
 
-  set(key: string, data: any) {
+  set(key: string, data: unknown) {
     this.cache.set(key, {
       data,
       timestamp: Date.now()
@@ -351,14 +351,13 @@ export const contractCache = new ContractCache();
  */
 export async function uploadResignationLetter(formData: FormData): Promise<{
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }> {
   try {
     const supabase = createClient()
     const file = formData.get('file') as File | null
     const memberId = formData.get('memberId') as string
-    const userId = formData.get('userId') as string
     const terminationType = formData.get('terminationType') as string // New parameter to differentiate termination types
 
     if (!file) {
@@ -374,7 +373,7 @@ export async function uploadResignationLetter(formData: FormData): Promise<{
     const path = `renuncia/${memberId}/${sanitizedFileName}`
 
     // Upload file to storage
-    const { data: storageData, error: storageError } = await supabase.storage
+    const { error: storageError } = await supabase.storage
       .from('contractual')
       .upload(path, file, {
         upsert: true
@@ -441,7 +440,7 @@ export interface UserDocument {
 export interface ContractSigningResponse {
   success: boolean;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 /**
@@ -744,7 +743,7 @@ export const isUserDataComplete = (userData: UserDocument): boolean => {
  * @param obj2 Second object to compare
  * @returns Boolean indicating if objects are deeply equal
  */
-const deepEqual = (obj1: any, obj2: any): boolean => {
+const deepEqual = (obj1: unknown, obj2: unknown): boolean => {
   if (obj1 === obj2) return true;
   
   if (obj1 == null || obj2 == null) return obj1 === obj2;
@@ -753,14 +752,14 @@ const deepEqual = (obj1: any, obj2: any): boolean => {
   
   if (typeof obj1 !== 'object') return obj1 === obj2;
   
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
+  const keys1 = Object.keys(obj1 as Record<string, unknown>);
+  const keys2 = Object.keys(obj2 as Record<string, unknown>);
   
   if (keys1.length !== keys2.length) return false;
   
   for (const key of keys1) {
     if (!keys2.includes(key)) return false;
-    if (!deepEqual(obj1[key], obj2[key])) return false;
+    if (!deepEqual((obj1 as Record<string, unknown>)[key], (obj2 as Record<string, unknown>)[key])) return false;
   }
   
   return true;

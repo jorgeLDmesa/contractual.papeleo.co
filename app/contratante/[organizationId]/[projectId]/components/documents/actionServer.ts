@@ -22,14 +22,6 @@ type ContractualDocument = {
 }
 
 // Tipos para respuestas de la base de datos
-type DbContractMember = {
-  contracts: DbContract | DbContract[];
-}
-
-type DbContract = {
-  required_documents: RequiredDocument | RequiredDocument[];
-}
-
 // Tipo para los documentos contractuales organizados por mes
 export type ContractualDocumentsByMonth = {
   month: string;
@@ -217,6 +209,16 @@ export async function getContractualDocumentsByMonth(contractMemberId: string): 
 // EXTRA DOCUMENTS FUNCTIONS
 // ========================================
 
+interface ExtraDocumentForMonth {
+  id: string;
+  name: string;
+  type: string;
+  required_document_id: string;
+  contractualDocumentId: string;
+  url?: string;
+  month?: string;
+}
+
 /**
  * Obtiene documentos extra contractuales agrupados por mes
  * @param contractMemberId ID del miembro del contrato
@@ -239,7 +241,7 @@ export async function getContractualExtraDocumentsByMonth(contractMemberId: stri
     }
 
     // Organizar documentos extra por mes
-    const extraDocsByMonth: Record<string, any[]> = {};
+    const extraDocsByMonth: Record<string, ExtraDocumentForMonth[]> = {};
     
     extraDocuments.forEach((doc: ContractualExtraDocument) => {
       const month = doc.month || 'Sin mes asignado';
@@ -251,6 +253,7 @@ export async function getContractualExtraDocumentsByMonth(contractMemberId: stri
         id: doc.id,
         name: doc.name,
         type: 'contractual-extra',
+        required_document_id: doc.id,
         contractualDocumentId: doc.id,
         url: doc.url || undefined,
         month: doc.month

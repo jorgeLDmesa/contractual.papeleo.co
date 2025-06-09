@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import ViewDocumentsModal, { ProjectDocumentGroupedByDueDate } from "./ViewDocumentsModal";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText, X, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo } from "react";
@@ -148,7 +148,7 @@ const DocumentStatusBadge: React.FC<DocumentStatusBadgeProps> = ({ projectDocume
         } else {
           toast.error('No se pudo abrir el documento de terminación');
         }
-      } catch (error) {
+      } catch {
         toast.error('Error al abrir el documento');
       } finally {
         setIsLoading(false);
@@ -179,7 +179,7 @@ const DocumentStatusBadge: React.FC<DocumentStatusBadgeProps> = ({ projectDocume
       } else {
         toast.error(response.error || 'Error al subir el documento de terminación');
       }
-    } catch (error) {
+    } catch {
       toast.error('Error al procesar la solicitud');
     } finally {
       setIsUploading(false);

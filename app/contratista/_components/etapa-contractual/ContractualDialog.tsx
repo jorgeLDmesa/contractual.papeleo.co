@@ -8,8 +8,6 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog"
-import { FileQuestion, FolderOpen, Search, X, PlusCircle } from 'lucide-react'
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -19,6 +17,7 @@ import ContractualSkeleton from './ContractualSkeleton'
 import SearchContractual from './SearchContractual'
 import MemberDocumentDetails from './MemberDocumentDetails'
 import { getAllDocuments, type DocumentGroup, type ContractualDocument } from './actions/actionServer'
+import { FileText, FolderOpen } from "lucide-react"
 
 interface ContractualDialogProps {
   contractMemberId: string;
@@ -40,9 +39,9 @@ export default function ContractualDialog({
   // Set contractMemberId globally when dialog opens
   useEffect(() => {
     if (open) {
-      (window as any).__contractMemberId = contractMemberId;
+      (window as { __contractMemberId?: string }).__contractMemberId = contractMemberId;
     } else {
-      delete (window as any).__contractMemberId;
+      delete (window as { __contractMemberId?: string }).__contractMemberId;
     }
   }, [open, contractMemberId])
 
@@ -195,7 +194,7 @@ export default function ContractualDialog({
               ) : !hasContractualDocuments ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                    <FileQuestion className="h-10 w-10 text-gray-400" />
+                    <FileText className="h-10 w-10 text-gray-400" />
                   </div>
                   {searchTerm ? (
                     <>
@@ -203,7 +202,7 @@ export default function ContractualDialog({
                         No se encontraron documentos
                       </h3>
                       <p className="text-gray-500 mb-4 max-w-sm">
-                        No hay documentos que coincidan con "{searchTerm}". 
+                        No hay documentos que coincidan con &ldquo;{searchTerm}&rdquo;. 
                         Intenta con otros términos de búsqueda.
                       </p>
                       <Button 

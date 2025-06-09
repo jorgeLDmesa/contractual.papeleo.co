@@ -15,7 +15,6 @@ import {
   type ContractData
 } from './actions/actionServer';
 import { 
-  useDocumentPreview, 
   debounce,
   contractCache
 } from './actions/actionClient';
@@ -100,7 +99,7 @@ export default function ContratistaPage() {
 
       // Verificar cache primero
       const cacheKey = `contract_${contractMemberId}`;
-      const cachedData = contractCache.get(cacheKey);
+      const cachedData = contractCache.get(cacheKey) as { contractData: ContractData | null; status: ContractStatus | null } | null;
       
       if (cachedData) {
         setState(prev => ({
@@ -140,9 +139,7 @@ export default function ContratistaPage() {
 
   // Función debounceada para cambio de contrato
   const debouncedContractChange = useMemo(
-    () => debounce((contractId: string) => {
-      loadContractData(contractId);
-    }, 300),
+    () => debounce(loadContractData, 300),
     [loadContractData]
   );
 
@@ -187,7 +184,7 @@ export default function ContratistaPage() {
         
         // Actualizar cache
         const cacheKey = `contract_${state.selectedContract}`;
-        const cachedData = contractCache.get(cacheKey);
+        const cachedData = contractCache.get(cacheKey) as { contractData: ContractData | null; status: ContractStatus | null } | null;
         if (cachedData) {
           contractCache.set(cacheKey, {
             ...cachedData,

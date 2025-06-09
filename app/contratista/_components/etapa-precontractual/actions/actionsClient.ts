@@ -3,6 +3,16 @@
 import { createClient } from '@/lib/supabase/client'
 import { sanitizeFileName } from '@/lib/utils'
 
+// Interface for document response
+interface DocumentResponse {
+  id: string;
+  contract_member_id: string;
+  required_document_id: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
+}
+
 /**
  * Verifies a document using AI before upload
  */
@@ -42,7 +52,7 @@ async function verifyDocument(file: File, documentName: string): Promise<{ succe
  * Uploads a precontractual document
  * Uses the contractual_document_id from the database to update the URL
  */
-export async function uploadPrecontractualDocument(formData: FormData, documentName?: string): Promise<{ success: boolean; data?: any; error?: string }> {
+export async function uploadPrecontractualDocument(formData: FormData, documentName?: string): Promise<{ success: boolean; data?: DocumentResponse; error?: string }> {
   try {
     const supabase = createClient()
     const file = formData.get('file') as File | null
@@ -176,7 +186,7 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
  * Replaces an existing precontractual document
  * Uses the contractual_document_id from the database to update the URL
  */
-export async function replacePrecontractualDocument(formData: FormData, documentName?: string): Promise<{ success: boolean; data?: any; error?: string }> {
+export async function replacePrecontractualDocument(formData: FormData, documentName?: string): Promise<{ success: boolean; data?: DocumentResponse; error?: string }> {
   try {
     const supabase = createClient()
     const file = formData.get('file') as File | null

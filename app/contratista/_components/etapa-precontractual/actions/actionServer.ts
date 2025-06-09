@@ -2,17 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-// Define the document type structure
-type PrecontractualDocumentData = {
-  id: string;
-  name: string;
-  url: string | null;
-  type: string;
-  month: string | null;
-  template_id?: number | null;
-  required_document_id: string;
-  contractual_document_id?: string;
-}
+// ========================================
+// TYPES DEFINITIONS
+// ========================================
 
 export async function getPrecontractualDocuments(contractMemberId: string) {
   try {

@@ -12,10 +12,11 @@ import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CalendarIcon, X } from 'lucide-react'
+import { Invitation, ContractualProject } from './types'
 
 export default function Invitations({ projectId }: { projectId: string }) {
-  const [invitations, setInvitations] = useState<any[]>([])
-  const [selectedProject, setSelectedProject] = useState<any>(null)
+  const [invitations, setInvitations] = useState<Invitation[]>([])
+  const [selectedProject, setSelectedProject] = useState<ContractualProject | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [visibleCount, setVisibleCount] = useState(21)

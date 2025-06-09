@@ -12,7 +12,7 @@ interface DocumentIdData {
   "lugar de nacimiento"?: string;
   "fecha de expedición"?: string;
   "numero de identificación"?: string;
-  [key: string]: any; // Allow other fields
+  [key: string]: unknown; // Allow other fields
 }
 
 /**

@@ -7,20 +7,19 @@ import Contracts from './Contracts'
 import Invitations from './Invitations'
 import Information from './Information'
 import { fetchProjectById, fetchContractsByProjectId } from './actions/actionServer'
+import { ContractualProject } from './types'
 import Navbar from '@/app/_components/Navbar'
 // import ShaderGradientBackground from "@/components/ui/ShaderGradientBackground"
 
 export default function ProjectPage() {
   const params = useParams()
   const projectId = params.projectId as string
-  const [selectedProject, setSelectedProject] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [selectedProject, setSelectedProject] = useState<ContractualProject | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
       if (projectId) {
         try {
-          setIsLoading(true)
           const [project] = await Promise.all([
             fetchProjectById(projectId),
             fetchContractsByProjectId(projectId)
@@ -28,8 +27,6 @@ export default function ProjectPage() {
           setSelectedProject(project)
         } catch (error) {
           console.error('Error loading data:', error)
-        } finally {
-          setIsLoading(false)
         }
       }
     }

@@ -1,7 +1,6 @@
 import React from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Organizations } from '@/lib/supabase/types';
 import OrganizationCard from './OrganizationCard';
 import { Metadata } from 'next';
 import { Navbar1 } from '@/components/blocks/navbar';

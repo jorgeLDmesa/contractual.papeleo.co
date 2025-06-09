@@ -304,15 +304,16 @@ Redacta un objeto contractual profesional y completo basado en la información p
       objetoContractual: objetoContractual
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creando tabla en Google Docs:', error);
     
     // Extraer más detalles del error similar a add-to-sheet
-    let errorMessage = error.message || 'Error desconocido';
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     let errorDetails = '';
     
-    if (error.response) {
-      errorDetails = JSON.stringify(error.response.data?.error || error.response.data || {});
+    if (error && typeof error === 'object' && 'response' in error) {
+      const errorWithResponse = error as { response?: { data?: { error?: unknown; [key: string]: unknown } } };
+      errorDetails = JSON.stringify(errorWithResponse.response?.data?.error || errorWithResponse.response?.data || {});
       console.error('Detalles del error de Google API:', errorDetails);
     }
     

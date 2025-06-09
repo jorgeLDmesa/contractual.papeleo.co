@@ -20,11 +20,6 @@ export function EmailSearchBar({ users, selectedUser, onUserSelect }: EmailSearc
     setOpen(false)
   }
 
-  function handleClearSelection() {
-    onUserSelect(null)
-    setOpen(false)
-  }
-
   return (
     <div className="relative">
       <Button

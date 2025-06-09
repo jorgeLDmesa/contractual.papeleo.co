@@ -67,14 +67,14 @@ export function ActionMenu({ contract, onContractUpdated, onContractDeleted }: A
       toast.success("Contrato eliminado correctamente")
       setIsDeleteModalOpen(false)
       onContractDeleted?.()
-    } catch (error) {
+    } catch {
       toast.error("Error al eliminar el contrato")
     } finally {
       setIsDeleting(false)
     }
   }
 
-  const handleContractUpdated = (updatedContract: Contract) => {
+  const handleContractUpdated = () => {
     onContractUpdated?.()
   }
 

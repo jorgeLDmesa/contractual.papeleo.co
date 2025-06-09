@@ -227,60 +227,66 @@ export default function ContractDialog({ contract_draft_url, children, user_id, 
                 {formData.NOMBRE ? "Confirme sus datos personales" : "Complete sus datos personales"}
               </h3>
               
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="nombre">Nombre completo</Label>
-                  <Input
-                    id="nombre"
-                    value={formData.NOMBRE}
-                    onChange={(e) => handleInputChange("NOMBRE", e.target.value)}
-                    placeholder="Ingrese su nombre completo"
-                  />
+              {isLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="identificacion">Número de identificación</Label>
-                  <Input
-                    id="identificacion"
-                    value={formData.IDENTIFICACIÓN}
-                    onChange={(e) => handleInputChange("IDENTIFICACIÓN", e.target.value)}
-                    placeholder="Ingrese su número de identificación"
-                  />
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="nombre">Nombre completo</Label>
+                    <Input
+                      id="nombre"
+                      value={formData.NOMBRE}
+                      onChange={(e) => handleInputChange("NOMBRE", e.target.value)}
+                      placeholder="Ingrese su nombre completo"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="identificacion">Número de identificación</Label>
+                    <Input
+                      id="identificacion"
+                      value={formData.IDENTIFICACIÓN}
+                      onChange={(e) => handleInputChange("IDENTIFICACIÓN", e.target.value)}
+                      placeholder="Ingrese su número de identificación"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="direccion">Dirección</Label>
+                    <Input
+                      id="direccion"
+                      value={formData.DIRECCIÓN}
+                      onChange={(e) => handleInputChange("DIRECCIÓN", e.target.value)}
+                      placeholder="Ingrese su dirección"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="telefono">Teléfono</Label>
+                    <Input
+                      id="telefono"
+                      value={formData.TELEFONO}
+                      onChange={(e) => handleInputChange("TELEFONO", e.target.value)}
+                      placeholder="Ingrese su teléfono"
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={updateUserData} 
+                    disabled={isSaving || !hasChanges}
+                    className="w-full mt-6"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : "Guardar Datos"}
+                  </Button>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="direccion">Dirección</Label>
-                  <Input
-                    id="direccion"
-                    value={formData.DIRECCIÓN}
-                    onChange={(e) => handleInputChange("DIRECCIÓN", e.target.value)}
-                    placeholder="Ingrese su dirección"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="telefono">Teléfono</Label>
-                  <Input
-                    id="telefono"
-                    value={formData.TELEFONO}
-                    onChange={(e) => handleInputChange("TELEFONO", e.target.value)}
-                    placeholder="Ingrese su teléfono"
-                  />
-                </div>
-                
-                <Button 
-                  onClick={updateUserData} 
-                  disabled={isSaving || !hasChanges}
-                  className="w-full mt-6"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Guardando...
-                    </>
-                  ) : "Guardar Datos"}
-                </Button>
-              </div>
+              )}
             </Card>
           )}
           

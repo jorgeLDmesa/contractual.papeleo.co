@@ -11,7 +11,7 @@ export async function uploadContractualDocument(
   file: File, 
   contractMemberId: string, 
   memberDocument: ContractualDocument
-): Promise<{ success: boolean; data?: any; error?: string }> {
+): Promise<{ success: boolean; data?: string; error?: string }> {
   try {
     const supabase = createClient()
 
@@ -39,7 +39,7 @@ export async function uploadContractualDocument(
     const path = `contractualdocuments/${contractMemberId}/${sanitizedFileName}`
 
     // Upload file to storage
-    const { data: storageData, error: storageError } = await supabase.storage
+    const { error: storageError } = await supabase.storage
       .from('contractual')
       .upload(path, file, {
         upsert: true
@@ -173,11 +173,10 @@ export async function uploadContractualExtraDocument(
     
     // Generate a unique file name
     const fileExtension = file.name.split('.').pop();
-    const sanitizedFileName = sanitizeFileName(file.name);
     const fileName = `extra/${contractMemberId}/${documentId}_${Date.now()}.${fileExtension}`;
     
     // Upload file to Supabase storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('contractual')
       .upload(fileName, file, {
         cacheControl: '3600',

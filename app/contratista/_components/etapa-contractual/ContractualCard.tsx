@@ -1,7 +1,7 @@
 "use client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileUp, Check, Loader2, Eye, MoreHorizontal, File, CheckCircle, Clock } from "lucide-react"
+import { FileUp, Loader2, Eye, MoreHorizontal, File, CheckCircle, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
@@ -27,11 +27,11 @@ export function ContractualCard({ memberDocument }: ContractualCardProps) {
 
   // Necesitamos obtener el contractMemberId del contexto o props padre
   // Por ahora usaremos una solución temporal
-  const getContractMemberId = () => {
+  const getContractMemberId = (): string => {
     // Esto debería venir del contexto del diálogo
     const event = new CustomEvent('get-contract-member-id');
     window.dispatchEvent(event);
-    return (window as any).__contractMemberId || '';
+    return (window as { __contractMemberId?: string }).__contractMemberId || '';
   }
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,7 +100,10 @@ export function ContractualCard({ memberDocument }: ContractualCardProps) {
   }
 
   const handleShowDetails = () => {
-    openDetails(memberDocument)
+    openDetails({
+      ...memberDocument,
+      month: memberDocument.month || undefined
+    })
   }
 
   const handleReplaceDocument = () => {

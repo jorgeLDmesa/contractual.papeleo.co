@@ -12,11 +12,10 @@ import { Separator } from "@/components/ui/separator";
 
 
 import DocumentCard from "./DocumentCard";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState, useRef } from "react";
 import { ContractualDocumentsByMonth, getAllContractualDocuments, createContractualExtraDocument } from "./actionServer";
-import { PlusCircle, CalendarIcon, Upload, FileText } from "lucide-react";
+import { PlusCircle, CalendarIcon } from "lucide-react";
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -70,15 +69,6 @@ export type ProjectDocument = {
   url?: string;
 };
 
-// Definir el tipo para documentos contractuales
-type ContractualDocument = {
-  id: string;              // Este es el ID de la tabla contractual_documents
-  name: string;            // Nombre del documento requerido
-  month: string;           // Mes del documento contractual
-  url?: string;            // URL del documento (si existe)
-  required_document_id: string; // ID del documento requerido
-};
-
 // Tipo para extensiones de contrato
 type ContractExtension = {
   id: number;
@@ -87,70 +77,6 @@ type ContractExtension = {
   extension_start_date: string;
   extension_end_date: string;
   extension_url: string;
-};
-
-// DocumentCardContractual component para mostrar documentos contractuales con estado pendiente/cargado
-const DocumentCardContractual = ({ document }: { document: ContractualDocument }) => {
-  // Función para previsualizar un documento si tiene URL
-  const handleViewDocument = () => {
-    if (document.url) {
-      // window.open(document.url, "_blank");
-      handlePreviewDocument();
-    }
-  };
-
-  const [isLoading, setIsLoading] = useState(false);
-
-
-  const handlePreviewDocument = async () => {
-    if (!document.url) return;
-    
-    setIsLoading(true);
-    try {
-      const result = await createDocumentSignedUrl(document.url);
-      
-      if (!result.success || !result.data) {
-        throw new Error(result.error || 'Error al generar URL de previsualización');
-      }
-      
-      // Open in new tab
-      const newWindow = window.open(result.data, '_blank');
-      if (!newWindow) {
-        throw new Error('El navegador bloqueó la apertura de la ventana. Por favor, permita las ventanas emergentes.');
-      }
-    } catch (error) {
-      console.error('Error previewing document:', error);
-      toast.error(error instanceof Error ? error.message : 'Error al previsualizar el documento');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">{document.name}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1">
-        <div className="text-sm text-gray-500">
-          Estado: <Badge
-            variant={document.url ? "secondary" : "destructive"}
-          >
-            {document.url ? "Cargado" : "Pendiente"}
-          </Badge>
-        </div>
-      </CardContent>
-      <CardContent>
-        <Button
-          disabled={!document.url}
-          className={document.url ? "cursor-pointer" : ""}
-          onClick={handleViewDocument}
-        >
-          Ver Documento
-        </Button>
-      </CardContent>
-    </Card>
-  );
 };
 
 // Extension card to display contract extensions

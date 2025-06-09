@@ -102,15 +102,9 @@ export default function ContractProgress({
     return () => clearTimeout(timer)
   }, [])
 
-  const getProjectPercentage = (contracts: number) => {
-    return totalContracts > 0 ? (contracts / totalContracts) * 100 : 0
-  }
-
   const getProjectWidth = (contracts: number) => {
     return completedContracts > 0 ? (contracts / completedContracts) * 100 : 0
   }
-
-  let accumulatedWidth = 0
 
   if (totalContracts === 0) {
     return (
@@ -152,8 +146,6 @@ export default function ContractProgress({
             <div className="absolute inset-0 flex">
               {projects.map((project, index) => {
                 const width = getProjectWidth(project.contracts)
-                const leftPosition = accumulatedWidth
-                accumulatedWidth += width
 
                 return (
                   <div

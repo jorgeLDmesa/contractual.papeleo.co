@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { DateRange } from "react-day-picker";
-import { format, addMonths, differenceInMonths, startOfMonth } from "date-fns";
+import { format, addMonths, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 
 /**

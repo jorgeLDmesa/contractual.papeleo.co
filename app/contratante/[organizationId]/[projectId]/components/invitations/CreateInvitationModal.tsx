@@ -12,9 +12,10 @@ import { processContractDocument, checkUserExists } from '../../actions/actionCl
 import { fetchContractsByProjectId, fetchAllUsers, sendContractInvitation } from '../../actions/actionServer'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { HelpCircle } from "lucide-react"
+import { ContractualProject, Contract, User } from '../../types'
 
 interface CreateInvitationModalProps {
-  selectedProject: any
+  selectedProject: ContractualProject
   onInvitationCreated?: () => void
 }
 
@@ -35,9 +36,9 @@ export function CreateInvitationModal({ selectedProject, onInvitationCreated }: 
   const [isEmailValid, setIsEmailValid] = useState<boolean | null>(null)
   
   // Estados locales
-  const [newInvitationContract, setNewInvitationContract] = useState<any>(null)
-  const [projectContracts, setProjectContracts] = useState<any[]>([])
-  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [newInvitationContract, setNewInvitationContract] = useState<Contract | null>(null)
+  const [projectContracts, setProjectContracts] = useState<Contract[]>([])
+  const [allUsers, setAllUsers] = useState<User[]>([])
 
   // Cargar datos al montar el componente
   useEffect(() => {

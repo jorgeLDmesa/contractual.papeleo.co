@@ -1,7 +1,7 @@
 "use client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileUp, Check, Loader2, ExternalLink, File, CheckCircle, Clock } from 'lucide-react'
+import { FileUp, Loader2, File, CheckCircle, Clock, ExternalLink } from 'lucide-react'
 import { Badge } from "@/components/ui/badge"
 import ActionMenu from "./ActionMenu"
 import { useRef, useCallback, useState } from "react"

@@ -1,7 +1,6 @@
 "use client"
 
 import { useParams } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import ProjectSignatureCard from "./components/information/ProjectSignatureCard"
 import ContratanteDataCard from "./components/information/ContratanteDataCard"
 
@@ -29,7 +28,6 @@ export default function Information() {
         
         <div className="space-y-6 col-span-1">
           <ContratanteDataCard
-            organizationId={organizationId}
             projectId={projectId}
           />
         </div>

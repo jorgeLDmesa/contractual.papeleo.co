@@ -2,13 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-// Define the document type returned by the RPC function
-type ContractDocument = {
-  name: string;
-  url: string | null;
-  month: string | null;
-}
-
 // Define the document type for the frontend
 export type ContractualDocument = {
   id: string;
@@ -25,6 +18,16 @@ export type ContractualDocument = {
 export type DocumentGroup = {
   month: string;
   docs: ContractualDocument[];
+}
+
+// Interface for extra document database response
+interface ExtraDocumentDbResponse {
+  id: string;
+  name: string;
+  url?: string | null;
+  month: string;
+  contract_member_id: string;
+  deleted_at?: string | null;
 }
 
 /**
@@ -166,7 +169,7 @@ export async function getContractualExtraDocuments(contractMemberId: string): Pr
     // Group by month
     const groupedByMonth: { [key: string]: ContractualDocument[] } = {};
     
-    extraDocs.forEach((doc: any) => {
+    extraDocs.forEach((doc: ExtraDocumentDbResponse) => {
       const month = doc.month; // We know it's not null
       
       if (!groupedByMonth[month]) {

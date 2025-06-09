@@ -207,7 +207,7 @@ export async function replaceContractDraftFile(
     if (oldFilePath && !docgenRegex.test(oldFilePath)) {
       try {
         // Si la ruta es una URL completa, extraemos solo la parte del path
-        let storagePath = oldFilePath;
+        const storagePath = oldFilePath;
         
         // Intentamos eliminar el archivo antiguo
         const { error: deleteError } = await supabase.storage

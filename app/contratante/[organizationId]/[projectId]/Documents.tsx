@@ -5,9 +5,11 @@ import DocumentsTable from './components/documents/DocumentsTable'
 import { SearchDocuments } from './components/documents/SearchDocuments'
 import { fetchProjectDocumentsByProjectId } from './actions/actionServer'
 import { TableDocumentsSkeleton } from './components/documents/TableDocumentsSkeleton'
+import { ProjectDocument } from './types'
+import { ProjectDocumentGroupedByDueDate } from './components/documents/ViewDocumentsModal'
 
 export default function Documents({ projectId }: { projectId: string }) {
-  const [projectDocuments, setProjectDocuments] = useState<any[]>([])
+  const [projectDocuments, setProjectDocuments] = useState<ProjectDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -40,7 +42,7 @@ export default function Documents({ projectId }: { projectId: string }) {
           isLoading
             ? <TableDocumentsSkeleton />
             : <DocumentsTable 
-                projectDocuments={projectDocuments}
+                projectDocuments={projectDocuments as unknown as ProjectDocumentGroupedByDueDate[]}
                 searchTerm={searchTerm}
               />
         }

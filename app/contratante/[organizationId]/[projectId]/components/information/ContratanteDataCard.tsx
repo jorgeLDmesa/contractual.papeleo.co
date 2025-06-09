@@ -11,11 +11,10 @@ import { Loader2 } from "lucide-react"
 import { isEqual } from "lodash"
 
 interface ContratanteDataCardProps {
-  organizationId: string
   projectId: string
 }
 
-export default function ContratanteDataCard({ organizationId, projectId }: ContratanteDataCardProps) {
+export default function ContratanteDataCard({ projectId }: ContratanteDataCardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [originalData, setOriginalData] = useState<Record<string, string> | null>(null)

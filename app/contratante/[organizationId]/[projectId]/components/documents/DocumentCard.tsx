@@ -76,11 +76,11 @@ export default function DocumentCard({
       </CardContent>
       <CardContent>
       <Button
-          disabled={!isDocumentLoaded}
+          disabled={!isDocumentLoaded || isLoading}
           className={isDocumentLoaded ? "cursor-pointer" : ""}
           onClick={handleViewDocument}
         >
-          Ver Documento
+          {isLoading ? "Cargando..." : "Ver Documento"}
         </Button>
       </CardContent>
     </Card>

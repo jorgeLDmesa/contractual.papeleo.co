@@ -4,7 +4,6 @@ import { ProjectCard } from './components/ProjectCard'
 import { CreateProjectModal } from './components/CreateProjectModal'
 import { SearchProjects } from './components/SearchProjects'
 import { ProjectsSkeleton } from './components/ProjectsSkeleton'
-import Navbar from '@/app/_components/Navbar'
 // import { ShaderGradient, ShaderGradientCanvas } from 'shadergradient'
 import { getUserProjectPermissionsByModule } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/client'
@@ -22,12 +21,19 @@ export default function ProjectsPage({ params }: { params: Promise<{ organizatio
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterDate, setFilterDate] = useState<Date | undefined>()
   const [isOwner, setIsOwner] = useState(true) // Inicialmente optimista
   const [hasFullAccess, setHasFullAccess] = useState(true) // Inicialmente optimista
   const [allowedProjectIds, setAllowedProjectIds] = useState<string[]>([])
-  const [permissionsLoaded, setPermissionsLoaded] = useState(false)
-  
+
+  // Filtrar proyectos según permisos y criterios de búsqueda
+  const filteredProjects = useMemo(() => {
+    return projects
+      .filter(project => 
+        isOwner || hasFullAccess || allowedProjectIds.includes(project.id)
+      )
+      .filter(project => project.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [projects, isOwner, hasFullAccess, allowedProjectIds, searchTerm]);
+
   // Forzar ocultar skeleton después de un tiempo máximo (1 segundo)
   const [forceHideSkeleton, setForceHideSkeleton] = useState(false)
   useEffect(() => {
@@ -91,8 +97,6 @@ export default function ProjectsPage({ params }: { params: Promise<{ organizatio
         }
       } catch (error) {
         console.error('Error loading permissions:', error);
-      } finally {
-        setPermissionsLoaded(true);
       }
     };
     
@@ -118,16 +122,6 @@ export default function ProjectsPage({ params }: { params: Promise<{ organizatio
   const handleProjectDeleted = (deletedProjectId: string) => {
     setProjects(prev => prev.filter(project => project.id !== deletedProjectId))
   }
-
-  // Filtrar proyectos según permisos y criterios de búsqueda
-  const filteredProjects = useMemo(() => {
-    return projects
-      .filter(project => 
-        isOwner || hasFullAccess || allowedProjectIds.includes(project.id)
-      )
-      .filter(project => project.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      .filter(project => !filterDate || new Date(project.createdAt) >= filterDate);
-  }, [projects, isOwner, hasFullAccess, allowedProjectIds, searchTerm, filterDate]);
 
   // Mostrar skeleton solo si:
   // 1. Estamos cargando proyectos, y

@@ -4,9 +4,19 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, FileText, Calendar, Hash } from "lucide-react";
 
+// Interface for document details
+interface DocumentDetails {
+  id: string;
+  name: string;
+  url?: string | null;
+  type: string;
+  month?: string;
+  template_id?: number | null;
+}
+
 // Create a context for the document details sheet
 type DocumentDetailsContextType = {
-  openDetails: (document: any) => void;
+  openDetails: (document: DocumentDetails) => void;
   isOpen: boolean;
 };
 
@@ -20,9 +30,9 @@ export const useDocumentDetails = () => useContext(DocumentDetailsContext);
 
 export default function MemberDocumentDetails() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentDetails | null>(null);
 
-  const openDetails = (document: any) => {
+  const openDetails = (document: DocumentDetails) => {
     setSelectedDocument(document);
     setIsOpen(true);
   };
@@ -146,7 +156,7 @@ export default function MemberDocumentDetails() {
                       <h3 className="font-semibold text-gray-900">¿Cómo subir este documento?</h3>
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <div className="space-y-2 text-sm text-blue-800">
-                          <p>• Haz clic en el botón "Subir" en la tarjeta del documento</p>
+                          <p>• Haz clic en el botón &ldquo;Subir&rdquo; en la tarjeta del documento</p>
                           <p>• Selecciona un archivo en formato PDF, DOC o DOCX</p>
                           <p>• El archivo se procesará automáticamente</p>
                           {selectedDocument.template_id && (

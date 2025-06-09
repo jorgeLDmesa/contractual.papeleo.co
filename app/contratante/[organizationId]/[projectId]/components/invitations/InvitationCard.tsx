@@ -40,7 +40,7 @@ const InvitationCard = ({ invitation, onInvitationDeleted }: InvitationCardProps
       await deleteInvitation(invitation.id)
       toast.success('Invitación eliminada correctamente')
       onInvitationDeleted?.()
-    } catch (error) {
+    } catch {
       toast.error('No se pudo eliminar la invitación')
     } finally {
       setIsDeleting(false)

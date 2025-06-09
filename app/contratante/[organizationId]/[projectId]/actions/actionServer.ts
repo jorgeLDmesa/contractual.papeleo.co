@@ -5,7 +5,6 @@ import { Resend } from 'resend'
 import { 
   DbContractualProject, 
   DbContract, 
-  DbContractMember, 
   DbUser,
   ContractualProject,
   Contract,
@@ -15,6 +14,54 @@ import {
 } from "../types"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
+
+// Additional interfaces for database responses
+interface ContractWithMembers {
+  id: string;
+  project_id: string;
+  name: string;
+  contract_members: ContractMemberWithUser | ContractMemberWithUser[];
+  required_documents: RequiredDocument | RequiredDocument[];
+}
+
+interface ContractMemberWithUser {
+  id: string;
+  status: string;
+  contract_url?: string;
+  status_juridico?: string;
+  ending?: string;
+  user: DbUser | DbUser[];
+  contractual_documents: ContractualDoc | ContractualDoc[];
+}
+
+interface RequiredDocument {
+  id: string;
+  name: string;
+  type: string;
+  due_date?: string;
+}
+
+interface ContractualDoc {
+  id: string;
+  required_document_id: string;
+  url?: string;
+}
+
+// Interface for invitation database response
+interface InvitationDbResponse {
+  id: string;
+  status: string;
+  invited_at: string;
+  accepted_at?: string;
+  user: DbUser | DbUser[];
+  contracts: {
+    name: string;
+    project_id: string;
+  } | {
+    name: string;
+    project_id: string;
+  }[];
+}
 
 // ========================================
 // PROJECT OPERATIONS
@@ -318,32 +365,29 @@ export async function updateContractDraftUrl(contractId: string, newDraftUrl: st
  */
 export async function fetchInvitationsByProjectId(projectId: string): Promise<Invitation[]> {
   const supabase = await createClient()
-  
+
   const { data, error } = await supabase
-    .from('contract_members')
+    .from("contract_members")
     .select(`
       id,
       status,
       invited_at,
       accepted_at,
-      user:users(email),
-      contracts!inner(
-        name,
-        project_id
-      )
+      user:users(id, username, email),
+      contracts(name, project_id)
     `)
-    .eq('contracts.project_id', projectId)
+    .eq("contracts.project_id", projectId)
 
   if (error) {
     console.error("Error fetching invitations:", error.message)
-    throw new Error('Failed to fetch invitations by project')
+    throw new Error(`Failed to fetch invitations: ${error.message}`)
   }
 
   if (!data) {
     return []
   }
 
-  return data.map((invitation: any) => {
+  return data.map((invitation: InvitationDbResponse) => {
     const userObj = Array.isArray(invitation.user) ? invitation.user[0] : invitation.user;
     const contractsObj = Array.isArray(invitation.contracts) ? invitation.contracts[0] : invitation.contracts;
 
@@ -369,7 +413,7 @@ export async function fetchInvitationsByProjectId(projectId: string): Promise<In
  */
 export async function sendContractInvitation(
   recipient: User,
-  selectedProject: any,
+  selectedProject: ContractualProject,
   contract: Contract,
   value?: string,
   startDate?: Date,
@@ -530,12 +574,12 @@ export async function fetchProjectDocumentsByProjectId(projectId: string): Promi
     return []
   }
 
-  const mappedData = data.flatMap((contract: any) => {
+  const mappedData = data.flatMap((contract: ContractWithMembers) => {
     const members = Array.isArray(contract.contract_members)
       ? contract.contract_members
       : [contract.contract_members];
 
-    return members.map((member: any) => {
+    return members.map((member: ContractMemberWithUser) => {
       const userData = Array.isArray(member.user)
         ? member.user[0]
         : member.user;
@@ -559,9 +603,9 @@ export async function fetchProjectDocumentsByProjectId(projectId: string): Promi
         status: member.status,
         statusJuridico: member.status_juridico,
         ending: member.ending,
-        requiredDocuments: requiredDocs.map((reqDoc: any) => {
+        requiredDocuments: requiredDocs.map((reqDoc: RequiredDocument) => {
           const matchedDoc = contractualDocs.find(
-            (cdoc: any) => cdoc.required_document_id === reqDoc.id
+            (cdoc: ContractualDoc) => cdoc.required_document_id === reqDoc.id
           );
           return {
             id: reqDoc.id,

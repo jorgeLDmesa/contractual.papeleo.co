@@ -4,10 +4,10 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Eye, Loader2, Check, FileSignature, Trash2 } from "lucide-react"
+import { Eye, Loader2, FileSignature, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import SignatureUploader from "./SignatureUploader"
-import { getProjectSignatureUrl, deleteProjectSignature } from "../../actions/actionClient"
+import { deleteProjectSignature } from "../../actions/actionClient"
 import { getProjectSignature, removeProjectSignature } from "../../actions/actionServer"
 
 interface SignatureData {
@@ -29,7 +29,6 @@ export default function ProjectSignatureCard({
   const [signatureData, setSignatureData] = useState<SignatureData | null>(initialSignatureData)
   const [signatureExists, setSignatureExists] = useState<boolean>(false)
   const [isCheckingSignature, setIsCheckingSignature] = useState(true)
-  const [signatureCreatedAt, setSignatureCreatedAt] = useState<string | null>(null)
   const [signature, setSignature] = useState<string | null>(null)
   const [openSignatureDialog, setOpenSignatureDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)

@@ -2,14 +2,13 @@
 
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Loader2, Upload, RefreshCw } from "lucide-react"
+import { Loader2, Upload } from "lucide-react"
 import { toast } from "sonner"
 import SignaturePad from "react-signature-canvas"
 import { uploadSignatureFromDataURL, uploadProjectSignature } from "../../actions/actionClient"
 import { updateProjectSignature } from "../../actions/actionServer"
 
 interface SignatureUploaderProps {
-  signature: string | null
   setSignature: (signature: string | null) => void
   organizationId: string
   projectId: string
@@ -17,9 +16,7 @@ interface SignatureUploaderProps {
 }
 
 export default function SignatureUploader({
-  signature,
   setSignature,
-  organizationId,
   projectId,
   onSignatureUploaded
 }: SignatureUploaderProps) {

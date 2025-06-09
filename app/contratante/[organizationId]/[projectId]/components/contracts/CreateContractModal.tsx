@@ -14,11 +14,9 @@ import {
 import { Label } from "@/components/ui/label"
 import { DialogDescription } from '@radix-ui/react-dialog'
 import { toast } from "sonner"
-import { useRouter } from 'next/navigation'
 import { 
   getDocumentSuggestions, 
   DocumentSuggestion,
-  getCurrentUser,
   uploadContractDraftFile,
   addDocument
 } from './actionClient'
@@ -73,8 +71,6 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
   // Estados para la opción de usar IA
   const [draftOption, setDraftOption] = useState<"file" | "ai">("file")
   const [objetoContractual, setObjetoContractual] = useState<string>("")
-
-  const router = useRouter()
 
   const openCreateModal = () => setIsOpen(true)
   const closeCreateModal = () => {

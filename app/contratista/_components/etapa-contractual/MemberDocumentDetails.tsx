@@ -2,9 +2,19 @@
 import { useState, createContext, useContext } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+// Interface for document details
+interface DocumentDetails {
+  id: string;
+  name: string;
+  url?: string | null;
+  type: string;
+  month?: string;
+  template_id?: number | null;
+}
+
 // Create a context for the document details sheet
 type DocumentDetailsContextType = {
-  openDetails: (document: any) => void;
+  openDetails: (document: DocumentDetails) => void;
   isOpen: boolean;
 };
 
@@ -18,9 +28,9 @@ export const useDocumentDetails = () => useContext(DocumentDetailsContext);
 
 export default function MemberDocumentDetails() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentDetails | null>(null);
 
-  const openDetails = (document: any) => {
+  const openDetails = (document: DocumentDetails) => {
     setSelectedDocument(document);
     setIsOpen(true);
   };
