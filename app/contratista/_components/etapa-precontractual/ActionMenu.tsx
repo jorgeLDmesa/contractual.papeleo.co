@@ -114,7 +114,10 @@ export default function ActionMenu({ memberDocument, contractMemberId }: ActionM
   };
 
   const handleDisplayDetails = () => {
-    documentDetails.openDetails(memberDocument);
+    documentDetails.openDetails({
+      ...memberDocument,
+      month: memberDocument.month || undefined
+    });
   };
 
   return (

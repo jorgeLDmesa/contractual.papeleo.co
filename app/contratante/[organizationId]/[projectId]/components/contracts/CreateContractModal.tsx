@@ -158,11 +158,11 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
   // Actualizar sugerencias al escribir en los inputs
   useEffect(() => {
     fetchPreContractualSuggestions(newPreContractualDoc);
-  }, [newPreContractualDoc]);
+  }, [newPreContractualDoc, fetchPreContractualSuggestions]);
 
   useEffect(() => {
     fetchContractualSuggestions(newContractualDoc);
-  }, [newContractualDoc]);
+  }, [newContractualDoc, fetchContractualSuggestions]);
 
   const handleSubmit = async () => {
     // Validación básica

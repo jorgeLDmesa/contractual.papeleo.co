@@ -53,6 +53,7 @@ export function EditContractDocuments({ isOpen, onClose, contract }: EditContrac
     if (isOpen && contract) {
       loadDocuments();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, contract]);
 
   useEffect(() => {
@@ -61,6 +62,7 @@ export function EditContractDocuments({ isOpen, onClose, contract }: EditContrac
     } else {
       setSuggestions([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newDocumentName, documentType]);
 
   const loadDocuments = async () => {

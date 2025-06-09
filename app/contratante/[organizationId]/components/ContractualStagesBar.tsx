@@ -13,23 +13,22 @@ export function ContractualStagesBar({ organizationId }: { organizationId: strin
   const [totalContractualStages, setTotalContractualStages] = useState(0)
   const [limit, setLimit] = useState<number | null>(null)
   const [projectCounts, setProjectCounts] = useState<ProjectStageCount[]>([])
-  
-  // Color palette for the different projects in the bar
-  const colors =[
-    "bg-blue-200",
-    "bg-violet-200",
-    "bg-blue-300",
-    "bg-purple-200",
-    "bg-blue-100",
-    "bg-violet-300",
-    "bg-blue-400",
-    "bg-purple-300",
-    "bg-sky-200",
-    "bg-fuchsia-200"
-  ]
-
 
   useEffect(() => {
+    // Color palette for the different projects in the bar
+    const colors = [
+      "bg-blue-200",
+      "bg-violet-200",
+      "bg-blue-300",
+      "bg-purple-200",
+      "bg-blue-100",
+      "bg-violet-300",
+      "bg-blue-400",
+      "bg-purple-300",
+      "bg-sky-200",
+      "bg-fuchsia-200"
+    ]
+
     const fetchData = async () => {
       try {
         const supabase = createClient()

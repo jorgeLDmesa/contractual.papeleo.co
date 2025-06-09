@@ -135,7 +135,7 @@ export default function ContratistaPage() {
       setState(prev => ({ ...prev, contractLoading: false }));
       toast.error("Error al cargar datos del contrato");
     }
-  }, [toast]);
+  }, []);
 
   // Función debounceada para cambio de contrato
   const debouncedContractChange = useMemo(
@@ -158,6 +158,7 @@ export default function ContratistaPage() {
     if (contractId) {
       debouncedContractChange(contractId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.contracts, debouncedContractChange]);
 
   // Handler optimizado para ver firma
@@ -167,7 +168,7 @@ export default function ContratistaPage() {
     } else {
       toast.error("Necesitas subir tu firma primero.");
     }
-  }, [state.signatureData, toast]);
+  }, [state.signatureData]);
 
   // Handler optimizado para refrescar status
   const handleRefreshContractStatus = useCallback(async () => {

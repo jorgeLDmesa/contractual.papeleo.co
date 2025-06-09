@@ -518,6 +518,7 @@ export default function ViewDocumentsModal({
       loadContractualDocuments();
       loadExtensions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, projectDocument.contractMemberId, refreshKey]);
 
   /**

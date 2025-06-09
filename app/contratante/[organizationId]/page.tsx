@@ -69,6 +69,7 @@ export default function ProjectsPage({ params }: { params: Promise<{ organizatio
   // Iniciar la carga de proyectos una sola vez
   useEffect(() => {
     loadProjects()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId])
 
   // Efecto para cargar permisos de usuario
@@ -106,6 +107,7 @@ export default function ProjectsPage({ params }: { params: Promise<{ organizatio
   // Cargar organización
   useEffect(() => {
     loadOrganization();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId]);
 
   // Handlers para los componentes

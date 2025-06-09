@@ -29,7 +29,7 @@ export default function ProjectSignatureCard({
   const [signatureData, setSignatureData] = useState<SignatureData | null>(initialSignatureData)
   const [signatureExists, setSignatureExists] = useState<boolean>(false)
   const [isCheckingSignature, setIsCheckingSignature] = useState(true)
-  const [signature, setSignature] = useState<string | null>(null)
+  const setSignature = () => {} // No-op function for SignatureUploader compatibility
   const [openSignatureDialog, setOpenSignatureDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   
@@ -172,7 +172,6 @@ export default function ProjectSignatureCard({
                   <DialogTitle>Actualizar firma</DialogTitle>
                 </DialogHeader>
                 <SignatureUploader
-                  signature={signature}
                   setSignature={setSignature}
                   organizationId={organizationId}
                   projectId={projectId}
@@ -203,7 +202,6 @@ export default function ProjectSignatureCard({
                   <DialogTitle>Agregar firma</DialogTitle>
                 </DialogHeader>
                 <SignatureUploader
-                  signature={signature}
                   setSignature={setSignature}
                   organizationId={organizationId}
                   projectId={projectId}
