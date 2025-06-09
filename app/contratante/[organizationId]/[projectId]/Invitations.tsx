@@ -139,10 +139,12 @@ export default function Invitations({ projectId }: { projectId: string }) {
             )}
           </div>
           
-          <CreateInvitationModal 
-            selectedProject={selectedProject}
-            onInvitationCreated={refreshInvitations}
-          />
+          {selectedProject && (
+            <CreateInvitationModal 
+              selectedProject={selectedProject}
+              onInvitationCreated={refreshInvitations}
+            />
+          )}
         </div>
       }
 
