@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo, use } from 'react'
+import { useState, useEffect, useMemo, use, useCallback } from 'react'
 import { ProjectCard } from './components/ProjectCard'
 import { CreateProjectModal } from './components/CreateProjectModal'
 import { SearchProjects } from './components/SearchProjects'
@@ -13,123 +13,150 @@ import { fetchProjectsByOrganizationId, fetchOrganizationById } from './actions/
 import { ContractualProject, Organization } from './types'
 import { Navbar1 } from '@/components/blocks/navbar'
 
+// Tipos para mejor tipado
+interface PermissionsState {
+  isOwner: boolean
+  hasFullAccess: boolean
+  allowedProjectIds: string[]
+  isLoading: boolean
+}
+
+interface LoadingState {
+  projects: boolean
+  organization: boolean
+  permissions: boolean
+}
+
+const CONTRACTUAL_MODULE_ID = 1
 
 export default function ProjectsPage({ params }: { params: Promise<{ organizationId: string }> }) {
   const { organizationId } = use(params)
   
+  // Estado consolidado para proyectos y organización
   const [projects, setProjects] = useState<ContractualProject[]>([])
-  const [projectsLoading, setProjectsLoading] = useState(true)
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [isOwner, setIsOwner] = useState(true) // Inicialmente optimista
-  const [hasFullAccess, setHasFullAccess] = useState(true) // Inicialmente optimista
-  const [allowedProjectIds, setAllowedProjectIds] = useState<string[]>([])
+  
+  // Estado consolidado para loading
+  const [loading, setLoading] = useState<LoadingState>({
+    projects: true,
+    organization: true,
+    permissions: true
+  })
+  
+  // Estado consolidado para permisos (sin valores iniciales optimistas)
+  const [permissions, setPermissions] = useState<PermissionsState>({
+    isOwner: false,
+    hasFullAccess: false,
+    allowedProjectIds: [],
+    isLoading: true
+  })
 
-  // Filtrar proyectos según permisos y criterios de búsqueda
-  const filteredProjects = useMemo(() => {
-    return projects
-      .filter(project => 
-        isOwner || hasFullAccess || allowedProjectIds.includes(project.id)
-      )
-      .filter(project => project.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [projects, isOwner, hasFullAccess, allowedProjectIds, searchTerm]);
-
-  // Forzar ocultar skeleton después de un tiempo máximo (1 segundo)
-  const [forceHideSkeleton, setForceHideSkeleton] = useState(false)
-  useEffect(() => {
-    const timer = setTimeout(() => setForceHideSkeleton(true), 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Cargar proyectos
-  const loadProjects = async () => {
+  // Función para cargar todos los datos en paralelo
+  const loadAllData = useCallback(async () => {
     try {
-      setProjectsLoading(true)
-      const projectsData = await fetchProjectsByOrganizationId(organizationId)
-      setProjects(projectsData)
+      setLoading({
+        projects: true,
+        organization: true,
+        permissions: true
+      })
+
+      // Obtener usuario actual primero
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      // Ejecutar todas las llamadas en paralelo
+      const [projectsData, organizationData, permissionsData] = await Promise.allSettled([
+        fetchProjectsByOrganizationId(organizationId),
+        fetchOrganizationById(organizationId),
+        user ? getUserProjectPermissionsByModule(
+          user.id,
+          organizationId,
+          CONTRACTUAL_MODULE_ID,
+          'contractual'
+        ) : Promise.resolve({ isOwner: false, hasFullAccess: false, allowedProjectIds: [] })
+      ])
+
+      // Manejar resultados de proyectos
+      if (projectsData.status === 'fulfilled') {
+        setProjects(projectsData.value)
+      } else {
+        console.error('Error loading projects:', projectsData.reason)
+        toast.error("Error al cargar los proyectos")
+      }
+
+      // Manejar resultados de organización
+      if (organizationData.status === 'fulfilled') {
+        setCurrentOrganization(organizationData.value)
+      } else {
+        console.error('Error loading organization:', organizationData.reason)
+        toast.error("Error al cargar la organización")
+      }
+
+      // Manejar resultados de permisos
+      if (permissionsData.status === 'fulfilled') {
+        setPermissions({
+          ...permissionsData.value,
+          isLoading: false
+        })
+      } else {
+        console.error('Error loading permissions:', permissionsData.reason)
+        setPermissions(prev => ({ ...prev, isLoading: false }))
+      }
+
     } catch (error) {
-      console.error('Error loading projects:', error)
-      toast.error("Error al cargar los proyectos")
+      console.error('Error loading data:', error)
+      toast.error("Error al cargar los datos")
     } finally {
-      setProjectsLoading(false)
+      setLoading({
+        projects: false,
+        organization: false,
+        permissions: false
+      })
     }
-  }
-
-  // Cargar organización
-  const loadOrganization = async () => {
-    try {
-      const organization = await fetchOrganizationById(organizationId)
-      setCurrentOrganization(organization)
-    } catch (error) {
-      console.error('Error loading organization:', error)
-      toast.error("Error al cargar la organización")
-    }
-  }
-
-  // Iniciar la carga de proyectos una sola vez
-  useEffect(() => {
-    loadProjects()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId])
 
-  // Efecto para cargar permisos de usuario
+  // Efecto único para cargar todos los datos
   useEffect(() => {
-    const loadPermissions = async () => {
-      try {
-        // Obtener usuario actual
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          // Cargar permisos
-          const CONTRACTUAL_MODULE_ID = 1;
-          
-          const permissions = await getUserProjectPermissionsByModule(
-            user.id,
-            organizationId,
-            CONTRACTUAL_MODULE_ID,
-            'contractual'
-          );
-          
-          // Actualizar permisos
-          setIsOwner(permissions.isOwner);
-          setHasFullAccess(permissions.hasFullAccess);
-          setAllowedProjectIds(permissions.allowedProjectIds);
-        }
-      } catch (error) {
-        console.error('Error loading permissions:', error);
-      }
-    };
+    loadAllData()
+  }, [loadAllData])
+
+  // Filtrar proyectos optimizado - memoización mejorada
+  const filteredProjects = useMemo(() => {
+    if (permissions.isLoading) return []
     
-    loadPermissions();
-  }, [organizationId]);
+    const searchTermLower = searchTerm.toLowerCase()
+    const hasPermissionToView = (project: ContractualProject) => 
+      permissions.isOwner || 
+      permissions.hasFullAccess || 
+      permissions.allowedProjectIds.includes(project.id)
 
-  // Cargar organización
-  useEffect(() => {
-    loadOrganization();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId]);
+    return projects
+      .filter(hasPermissionToView)
+      .filter(project => searchTermLower === '' || project.name.toLowerCase().includes(searchTermLower))
+  }, [projects, permissions, searchTerm])
 
-  // Handlers para los componentes
-  const handleProjectCreated = (newProject: ContractualProject) => {
+  // Handlers optimizados con useCallback
+  const handleProjectCreated = useCallback((newProject: ContractualProject) => {
     setProjects(prev => [newProject, ...prev])
-  }
+  }, [])
 
-  const handleProjectUpdated = (updatedProject: ContractualProject) => {
+  const handleProjectUpdated = useCallback((updatedProject: ContractualProject) => {
     setProjects(prev => prev.map(project => 
       project.id === updatedProject.id ? updatedProject : project
     ))
-  }
+  }, [])
 
-  const handleProjectDeleted = (deletedProjectId: string) => {
+  const handleProjectDeleted = useCallback((deletedProjectId: string) => {
     setProjects(prev => prev.filter(project => project.id !== deletedProjectId))
-  }
+  }, [])
 
-  // Mostrar skeleton solo si:
-  // 1. Estamos cargando proyectos, y
-  // 2. No tenemos proyectos aún, y
-  // 3. No hemos forzado ocultar el skeleton
-  const showSkeleton = projectsLoading && projects.length === 0 && !forceHideSkeleton;
+  // Estado de carga general
+  const isLoading = loading.projects || loading.organization || loading.permissions
+  const showSkeleton = isLoading && projects.length === 0
+
+  // Verificar si puede crear proyectos
+  const canCreateProjects = permissions.isOwner || permissions.hasFullAccess
 
   return (
     <div>
@@ -167,7 +194,7 @@ export default function ProjectsPage({ params }: { params: Promise<{ organizatio
             value={searchTerm}
             onChange={setSearchTerm}
           />
-          {(isOwner || hasFullAccess) && 
+          {canCreateProjects && 
             <CreateProjectModal 
               organizationId={organizationId} 
               onSuccess={handleProjectCreated}
@@ -180,9 +207,9 @@ export default function ProjectsPage({ params }: { params: Promise<{ organizatio
           ) : filteredProjects.length === 0 ? (
             <div className="col-span-full text-center py-8">
               <p className="text-gray-500 text-lg">
-                {isOwner || hasFullAccess 
+                {!isLoading && (canCreateProjects
                   ? "No se encontraron proyectos. Haz clic en \"Crear Proyecto\" para comenzar."
-                  : "No tienes acceso a ningún proyecto en este módulo."}
+                  : "No tienes acceso a ningún proyecto en este módulo.")}
               </p>
             </div>
           ) : (
@@ -191,7 +218,7 @@ export default function ProjectsPage({ params }: { params: Promise<{ organizatio
                 key={project.id}
                 project={project}
                 organizationId={organizationId}
-                canEdit={isOwner || hasFullAccess || allowedProjectIds.includes(project.id)}
+                canEdit={permissions.isOwner || permissions.hasFullAccess || permissions.allowedProjectIds.includes(project.id)}
                 onProjectUpdated={handleProjectUpdated}
                 onProjectDeleted={handleProjectDeleted}
               />

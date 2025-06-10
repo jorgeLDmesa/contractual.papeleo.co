@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { 
   Dialog, 
   DialogContent, 
@@ -29,6 +29,15 @@ type PrecontractualDocument = {
   contractual_document_id?: string;
 }
 
+// Consolidated state interface
+interface DialogState {
+  isLoading: boolean;
+  documents: PrecontractualDocument[];
+  searchTerm: string;
+  hasNotifiedCompletion: boolean;
+  initialCompletionChecked: boolean;
+}
+
 interface PrecontractualDialogProps {
   contractMemberId: string;
   contractName?: string;
@@ -43,21 +52,100 @@ export default function PrecontractualDialog({
   onPhaseComplete
 }: PrecontractualDialogProps) {
   const [open, setOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [documents, setDocuments] = useState<PrecontractualDocument[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [refreshKey, setRefreshKey] = useState(0)
   
-  // Track completion state to avoid firing on initial load
-  const [initialCompletionState, setInitialCompletionState] = useState<boolean | null>(null)
-  const [hasNotifiedThisSession, setHasNotifiedThisSession] = useState(false)
+  // Consolidated state
+  const [state, setState] = useState<DialogState>({
+    isLoading: false,
+    documents: [],
+    searchTerm: '',
+    hasNotifiedCompletion: false,
+    initialCompletionChecked: false
+  })
 
-  // Listen for document upload/replace events
-  useEffect(() => {
-    if (!open) return;
+  // Ref to track initial completion state
+  const initiallyCompleteRef = useRef<boolean | null>(null)
+
+  // Memoized statistics - only recalculated when documents change
+  const statistics = useMemo(() => {
+    const totalDocuments = state.documents.length
+    const uploadedDocuments = state.documents.filter(doc => doc.url).length
+    const pendingDocuments = totalDocuments - uploadedDocuments
+    const allDocumentsUploaded = totalDocuments > 0 && uploadedDocuments === totalDocuments
+    const completionPercentage = totalDocuments > 0 ? Math.round((uploadedDocuments / totalDocuments) * 100) : 0
+
+    return {
+      totalDocuments,
+      uploadedDocuments,
+      pendingDocuments,
+      allDocumentsUploaded,
+      completionPercentage
+    }
+  }, [state.documents])
+
+  // Optimized filtered documents with debounced search
+  const filteredDocuments = useMemo(() => {
+    if (!state.searchTerm.trim()) return state.documents
     
+    const searchTermLower = state.searchTerm.toLowerCase()
+    return state.documents.filter(doc => 
+      doc.name.toLowerCase().includes(searchTermLower)
+    )
+  }, [state.documents, state.searchTerm])
+
+  // Load documents function with proper error handling
+  const loadDocuments = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoading: true }))
+    
+    try {
+      const result = await getPrecontractualDocuments(contractMemberId)
+      
+      if (result.success && result.data) {
+        const documents = result.data
+        const totalDocs = documents.length
+        const uploadedDocs = documents.filter(doc => doc.url).length
+        const isCurrentlyComplete = totalDocs > 0 && uploadedDocs === totalDocs
+        
+        // Set initial completion state only once
+        if (initiallyCompleteRef.current === null) {
+          initiallyCompleteRef.current = isCurrentlyComplete
+        }
+        
+        setState(prev => ({
+          ...prev,
+          documents,
+          isLoading: false,
+          initialCompletionChecked: true
+        }))
+      } else {
+        console.error('Error fetching documents:', result.error)
+        setState(prev => ({
+          ...prev,
+          documents: [],
+          isLoading: false,
+          initialCompletionChecked: true
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error)
+      setState(prev => ({
+        ...prev,
+        documents: [],
+        isLoading: false,
+        initialCompletionChecked: true
+      }))
+    }
+  }, [contractMemberId])
+
+  // Combined effect for dialog opening and document change events
+  useEffect(() => {
+    if (!open) return
+
+    // Load documents immediately
+    loadDocuments()
+
+    // Listen for document changes
     const handleDocumentChange = () => {
-      setRefreshKey(prevKey => prevKey + 1)
+      loadDocuments()
     }
     
     window.addEventListener('precontractual-document-change', handleDocumentChange)
@@ -65,110 +153,61 @@ export default function PrecontractualDialog({
     return () => {
       window.removeEventListener('precontractual-document-change', handleDocumentChange)
     }
-  }, [open])
+  }, [open, loadDocuments])
 
-  // Fetch documents when dialog opens
+  // Simplified completion notification logic
   useEffect(() => {
-    if (!open) return;
-
-    const fetchDocuments = async () => {
-      setIsLoading(true)
-      try {
-        const result = await getPrecontractualDocuments(contractMemberId)
-        if (result.success && result.data) {
-          setDocuments(result.data)
-          
-          // Set initial completion state only when documents are first loaded
-          if (initialCompletionState === null) {
-            const totalDocs = result.data.length
-            const uploadedDocs = result.data.filter((doc: PrecontractualDocument) => doc.url).length
-            const isComplete = totalDocs > 0 && uploadedDocs === totalDocs
-            setInitialCompletionState(isComplete)
-          }
-        } else {
-          console.error('Error fetching documents:', result.error)
-          setDocuments([])
-          setInitialCompletionState(false)
-        }
-      } catch (error) {
-        console.error('Error fetching documents:', error)
-        setDocuments([])
-        setInitialCompletionState(false)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    fetchDocuments()
-  }, [contractMemberId, refreshKey, open, initialCompletionState])
-
-  // Filter documents by search term
-  const filteredDocuments = useMemo(() => {
-    if (!searchTerm) return documents
-    
-    return documents.filter(doc => 
-      doc.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  }, [documents, searchTerm])
-
-  // Statistics
-  const totalDocuments = documents.length
-  const uploadedDocuments = documents.filter(doc => doc.url).length
-  const pendingDocuments = totalDocuments - uploadedDocuments
-  const allDocumentsUploaded = totalDocuments > 0 && uploadedDocuments === totalDocuments
-
-  // IMPROVED: Only notify when there's an actual state change during this session
-  useEffect(() => {
-    // Only proceed if:
-    // 1. Dialog is open
-    // 2. We have initial state set
-    // 3. Documents are now complete 
-    // 4. They weren't complete initially (this is the key change)
-    // 5. We haven't notified in this session yet
-    // 6. We have the callback
-    if (
+    const shouldNotify = 
       open && 
-      initialCompletionState !== null && 
-      allDocumentsUploaded && 
-      !initialCompletionState && 
-      !hasNotifiedThisSession && 
+      state.initialCompletionChecked &&
+      statistics.allDocumentsUploaded && 
+      initiallyCompleteRef.current === false && 
+      !state.hasNotifiedCompletion && 
       onPhaseComplete
-    ) {
-      
+
+    if (shouldNotify) {
       const timeout = setTimeout(() => {
-        onPhaseComplete();
+        onPhaseComplete()
         window.dispatchEvent(new CustomEvent('precontractual-phase-complete', {
           detail: { contractMemberId }
-        }));
-        setHasNotifiedThisSession(true);
-      }, 800);
+        }))
+        setState(prev => ({ ...prev, hasNotifiedCompletion: true }))
+      }, 800)
 
-      return () => clearTimeout(timeout);
+      return () => clearTimeout(timeout)
     }
   }, [
     open, 
-    allDocumentsUploaded, 
-    initialCompletionState, 
-    hasNotifiedThisSession, 
+    state.initialCompletionChecked,
+    statistics.allDocumentsUploaded, 
+    state.hasNotifiedCompletion, 
     onPhaseComplete, 
     contractMemberId
-  ]);
+  ])
 
-  // Reset states when dialog closes
-  const handleOpenChange = (newOpen: boolean) => {
+  // Optimized handlers with useCallback
+  const handleOpenChange = useCallback((newOpen: boolean) => {
     setOpen(newOpen)
     if (!newOpen) {
-      setSearchTerm('')
-      setRefreshKey(0)
-      // Reset session tracking when dialog closes
-      setInitialCompletionState(null)
-      setHasNotifiedThisSession(false)
+      // Reset all state when dialog closes
+      setState({
+        isLoading: false,
+        documents: [],
+        searchTerm: '',
+        hasNotifiedCompletion: false,
+        initialCompletionChecked: false
+      })
+      initiallyCompleteRef.current = null
     }
-  }
+  }, [])
 
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value)
-  }
+  const handleSearchChange = useCallback((value: string) => {
+    setState(prev => ({ ...prev, searchTerm: value }))
+  }, [])
+
+  const clearSearch = useCallback(() => {
+    setState(prev => ({ ...prev, searchTerm: '' }))
+  }, [])
 
   return (
     <>
@@ -186,7 +225,7 @@ export default function PrecontractualDialog({
               <DialogTitle className="text-2xl font-bold text-gray-900">
                 Documentos Precontractuales
               </DialogTitle>
-              {allDocumentsUploaded && (
+              {statistics.allDocumentsUploaded && (
                 <Badge className="bg-green-100 text-green-800 border-green-300 ml-auto">
                   ✓ Fase Completa
                 </Badge>
@@ -206,19 +245,19 @@ export default function PrecontractualDialog({
             <div className="flex flex-wrap gap-4 mt-4">
               <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
                 <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
-                <span className="text-sm text-gray-700">Total: {totalDocuments}</span>
+                <span className="text-sm text-gray-700">Total: {statistics.totalDocuments}</span>
               </div>
               <div className="flex items-center gap-2 bg-green-100 rounded-lg px-3 py-2">
                 <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span className="text-sm text-green-700">Subidos: {uploadedDocuments}</span>
+                <span className="text-sm text-green-700">Subidos: {statistics.uploadedDocuments}</span>
               </div>
               <div className="flex items-center gap-2 bg-red-100 rounded-lg px-3 py-2">
                 <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-                <span className="text-sm text-red-700">Pendientes: {pendingDocuments}</span>
+                <span className="text-sm text-red-700">Pendientes: {statistics.pendingDocuments}</span>
               </div>
             </div>
 
-            {allDocumentsUploaded && (
+            {statistics.allDocumentsUploaded && (
               <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center gap-2 text-green-800">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -240,26 +279,26 @@ export default function PrecontractualDialog({
                 type="text"
                 placeholder="Buscar documentos..."
                 className="pl-10 pr-10 h-11 bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                value={searchTerm}
+                value={state.searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
               />
-              {searchTerm && (
+              {state.searchTerm && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-gray-200"
-                  onClick={() => handleSearchChange('')}
+                  onClick={clearSearch}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
             
-            {searchTerm && (
+            {state.searchTerm && (
               <div className="mt-3 text-sm text-gray-600">
                 {filteredDocuments.length === 0 
                   ? "No se encontraron documentos que coincidan con tu búsqueda" 
-                  : `Mostrando ${filteredDocuments.length} de ${totalDocuments} documentos`
+                  : `Mostrando ${filteredDocuments.length} de ${statistics.totalDocuments} documentos`
                 }
               </div>
             )}
@@ -268,7 +307,7 @@ export default function PrecontractualDialog({
           {/* Documents Grid - Scrollable Area */}
           <div className="flex-1 overflow-y-auto bg-gray-50">
             <div className="p-4 md:p-6">
-              {isLoading ? (
+              {state.isLoading ? (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <PrecontractualSkeleton />
                 </div>
@@ -277,18 +316,18 @@ export default function PrecontractualDialog({
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
                     <FileText className="h-10 w-10 text-gray-400" />
                   </div>
-                  {searchTerm ? (
+                  {state.searchTerm ? (
                     <>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
                         No se encontraron documentos
                       </h3>
                       <p className="text-gray-500 mb-4 max-w-sm">
-                        No hay documentos que coincidan con &ldquo;{searchTerm}&rdquo;. 
+                        No hay documentos que coincidan con &ldquo;{state.searchTerm}&rdquo;. 
                         Intenta con otros términos de búsqueda.
                       </p>
                       <Button 
                         variant="outline" 
-                        onClick={() => handleSearchChange('')}
+                        onClick={clearSearch}
                         className="text-blue-600 border-blue-600 hover:bg-blue-50"
                       >
                         Limpiar búsqueda
@@ -311,7 +350,7 @@ export default function PrecontractualDialog({
                   {/* Results Header */}
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      {searchTerm ? 'Resultados de búsqueda' : 'Documentos requeridos'}
+                      {state.searchTerm ? 'Resultados de búsqueda' : 'Documentos requeridos'}
                     </h3>
                     <div className="text-sm text-gray-500">
                       {filteredDocuments.length} documento{filteredDocuments.length !== 1 ? 's' : ''}
@@ -321,7 +360,7 @@ export default function PrecontractualDialog({
                   {/* Documents Grid */}
                   <div className="flex flex-wrap gap-6 justify-start">
                     {filteredDocuments.map(doc => (
-                      <div key={`${doc.id}-${refreshKey}`} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] xl:w-[280px]">
+                      <div key={doc.id} className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] xl:w-[280px]">
                         <PrecontractualCard 
                           memberDocument={doc} 
                           contractMemberId={contractMemberId} 
@@ -335,23 +374,23 @@ export default function PrecontractualDialog({
           </div>
 
           {/* Footer with progress indicator */}
-          {totalDocuments > 0 && (
+          {statistics.totalDocuments > 0 && (
             <div className="bg-white border-t border-gray-200 p-4 md:p-6 flex-shrink-0">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">
-                  Progreso: {uploadedDocuments} de {totalDocuments} documentos completados
+                  Progreso: {statistics.uploadedDocuments} de {statistics.totalDocuments} documentos completados
                 </span>
                 <div className="flex items-center gap-2">
                   <div className="w-32 bg-gray-200 rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all duration-300 ${
-                        allDocumentsUploaded ? 'bg-green-500' : 'bg-blue-600'
+                        statistics.allDocumentsUploaded ? 'bg-green-500' : 'bg-blue-600'
                       }`}
-                      style={{ width: `${totalDocuments > 0 ? (uploadedDocuments / totalDocuments) * 100 : 0}%` }}
+                      style={{ width: `${statistics.completionPercentage}%` }}
                     ></div>
                   </div>
-                  <span className={`font-medium ${allDocumentsUploaded ? 'text-green-700' : 'text-gray-900'}`}>
-                    {totalDocuments > 0 ? Math.round((uploadedDocuments / totalDocuments) * 100) : 0}%
+                  <span className={`font-medium ${statistics.allDocumentsUploaded ? 'text-green-700' : 'text-gray-900'}`}>
+                    {statistics.completionPercentage}%
                   </span>
                 </div>
               </div>

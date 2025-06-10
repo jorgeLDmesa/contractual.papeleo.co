@@ -487,7 +487,7 @@ export async function sendContractInvitation(
   if (startDate && endDate) {
     try {
       await createContractualDocuments(data.id, contract.id, startDate, endDate)
-    } catch (docError) {
+    } catch {
       // Don't throw here as the invitation was created successfully
       // We can add logging or other handling as needed
     }
@@ -541,7 +541,7 @@ export async function sendContractInvitation(
         </div>
       `
     });
-  } catch (emailError) {
+  } catch {
     // Don't throw here, as the invitation was created successfully
     // We can add logging or other handling as needed
   }

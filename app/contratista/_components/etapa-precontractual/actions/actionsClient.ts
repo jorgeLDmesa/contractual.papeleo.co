@@ -54,7 +54,6 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
     const supabase = createClient()
     const file = formData.get('file') as File | null
     const memberId = formData.get('memberId') as string
-    const contractId = formData.get('contractId') as string
     const contractualDocumentId = formData.get('contractualDocumentId') as string
     const requiredDocumentId = formData.get('requiredDocumentId') as string
 
@@ -167,7 +166,6 @@ export async function replacePrecontractualDocument(formData: FormData, document
     const file = formData.get('file') as File | null
     const contractualDocumentId = formData.get('contractualDocumentId') as string
     const memberId = formData.get('memberId') as string
-    const contractId = formData.get('contractId') as string
 
     if (!file) {
       throw new Error('File not provided')

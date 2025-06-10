@@ -123,7 +123,7 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
         if (isPreContractualInputFocused) {
           setPreContractualSuggestions(suggestions);
         }
-      } catch (error) {
+      } catch {
         if (isPreContractualInputFocused) {
           toast.warning("No se pudieron cargar sugerencias. Por favor, continúe escribiendo manualmente.");
         }
@@ -150,7 +150,7 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
         if (isContractualInputFocused) {
           setContractualSuggestions(suggestions);
         }
-      } catch (error) {
+      } catch {
         if (isContractualInputFocused) {
           toast.warning("No se pudieron cargar sugerencias. Por favor, continúe escribiendo manualmente.");
         }
@@ -330,7 +330,7 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
             if (!result.success) {
               toast.warning(`No se pudo crear el documento precontractual "${docName}": ${result.error}`);
             }
-          } catch (docError) {
+          } catch {
             toast.warning(`Error al crear documento precontractual "${docName}"`);
             // No interrumpimos el proceso si falla la creación de un documento
           }
@@ -347,7 +347,7 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
             if (!result.success) {
               toast.warning(`No se pudo crear el documento contractual "${docName}": ${result.error}`);
             }
-          } catch (docError) {
+          } catch {
             toast.warning(`Error al crear documento contractual "${docName}"`);
             // No interrumpimos el proceso si falla la creación de un documento
           }

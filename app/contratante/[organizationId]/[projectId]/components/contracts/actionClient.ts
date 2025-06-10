@@ -65,7 +65,7 @@ export async function getDocumentSuggestions(
         }
         
         // Si llegamos aquí, la primera opción falló
-      } catch (err) {
+      } catch {
         
       }
       
@@ -100,7 +100,7 @@ export async function getDocumentSuggestions(
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
         .slice(0, 5);
     }
-  } catch (generalError) {
+  } catch {
     return [];
   }
   
@@ -209,7 +209,7 @@ export async function replaceContractDraftFile(
         } else {
           
         }
-      } catch (deleteErr) {
+      } catch {
         // Continuamos con la subida aunque haya habido un error
       }
     }
@@ -311,7 +311,7 @@ export async function fetchContractDocuments(contractId: string) {
     }
     
     return data || [];
-  } catch (error) {
+  } catch {
     return [];
   }
 }
