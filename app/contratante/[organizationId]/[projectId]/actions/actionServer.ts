@@ -48,9 +48,20 @@ export async function fetchProjectById(projectId: string): Promise<ContractualPr
       throw new Error('Project ID is required')
     }
 
+    // Check environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      throw new Error('NEXT_PUBLIC_SUPABASE_URL is not configured')
+    }
+    
+    if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured')
+    }
+
+    console.log('Supabase environment variables are configured')
+
     const supabase = await createClient()
     
-    console.log('Supabase client created, executing query...')
+    console.log('Supabase client created successfully')
     
     const { data, error } = await supabase
       .from('contractual_projects')
