@@ -518,6 +518,20 @@ export async function sendContractInvitation(
   const userObj = Array.isArray(data.user) ? data.user[0] : data.user;
   const contractsObj = Array.isArray(data.contracts) ? data.contracts[0] : data.contracts;
 
+  // Create contractual documents if start and end dates are provided
+  if (startDate && endDate) {
+    try {
+      await createContractualDocuments(data.id, contract.id, startDate, endDate)
+      console.log(`Successfully created contractual documents for contract member ${data.id}`)
+    } catch (docError) {
+      console.error("Error creating contractual documents:", docError)
+      // Don't throw here as the invitation was created successfully
+      // We can add logging or other handling as needed
+    }
+  } else {
+    console.log('Start date or end date not provided, skipping contractual documents creation')
+  }
+
   // Send email invitation
   try {
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/contratista`;
@@ -757,6 +771,114 @@ export async function fetchProjectDocumentsByProjectId(projectId: string): Promi
   } catch (error) {
     console.error("Unexpected error in fetchProjectDocumentsByProjectId:", error)
     throw new Error(`Failed to fetch project documents: ${error}`)
+  }
+}
+
+// ========================================
+// REQUIRED DOCUMENTS OPERATIONS
+// ========================================
+
+/**
+ * Fetches required documents for a specific contract
+ * @param contractId The ID of the contract
+ * @returns Array of required documents
+ */
+export async function fetchRequiredDocumentsByContractId(contractId: string) {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('required_documents')
+    .select('id, name, type, due_date')
+    .eq('contract_id', contractId)
+    .is('deleted_at', null)
+
+  if (error) {
+    console.error("Error fetching required documents:", error.message)
+    throw new Error(`Failed to fetch required documents: ${error.message}`)
+  }
+
+  return data || []
+}
+
+/**
+ * Creates contractual documents for a contract member based on required documents
+ * @param contractMemberId The ID of the contract member
+ * @param contractId The ID of the contract
+ * @param startDate The start date of the contract
+ * @param endDate The end date of the contract
+ */
+export async function createContractualDocuments(
+  contractMemberId: string,
+  contractId: string,
+  startDate: Date,
+  endDate: Date
+) {
+  const supabase = await createClient()
+  
+  try {
+    // Get required documents for this contract
+    const requiredDocuments = await fetchRequiredDocumentsByContractId(contractId)
+    
+    if (requiredDocuments.length === 0) {
+      console.log('No required documents found for contract:', contractId)
+      return
+    }
+
+    // Calculate the number of months between start and end date
+    // Example: Jan 2024 to Mar 2024 = 3 months (Jan, Feb, Mar)
+    const monthsDiff = Math.abs(
+      (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+      (endDate.getMonth() - startDate.getMonth())
+    ) + 1 // +1 to include both start and end months
+    
+    console.log(`Contract duration: ${monthsDiff} months (from ${startDate.toISOString().slice(0, 7)} to ${endDate.toISOString().slice(0, 7)})`)
+
+    const contractualDocumentsToCreate = []
+
+    for (const requiredDoc of requiredDocuments) {
+      if (requiredDoc.type === 'precontractual') {
+        // For precontractual documents, create one document with month = null
+        contractualDocumentsToCreate.push({
+          contract_member_id: contractMemberId,
+          required_document_id: requiredDoc.id,
+          month: null,
+          url: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      } else if (requiredDoc.type === 'contractual') {
+        // For contractual documents, create one document per month
+        for (let i = 0; i < monthsDiff; i++) {
+          const monthDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1)
+          const monthString = monthDate.toISOString().slice(0, 7) // YYYY-MM format
+          
+          contractualDocumentsToCreate.push({
+            contract_member_id: contractMemberId,
+            required_document_id: requiredDoc.id,
+            month: monthString,
+            url: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+        }
+      }
+    }
+
+    if (contractualDocumentsToCreate.length > 0) {
+      const { error } = await supabase
+        .from('contractual_documents')
+        .insert(contractualDocumentsToCreate)
+
+      if (error) {
+        console.error("Error creating contractual documents:", error.message)
+        throw new Error(`Failed to create contractual documents: ${error.message}`)
+      }
+
+      console.log(`Created ${contractualDocumentsToCreate.length} contractual documents for contract member ${contractMemberId}`)
+    }
+  } catch (error) {
+    console.error("Error in createContractualDocuments:", error)
+    throw error
   }
 }
 
