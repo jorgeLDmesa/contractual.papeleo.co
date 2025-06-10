@@ -11,6 +11,7 @@ import { Contract } from "./types"
 export default function Contracts({ projectId }: { projectId: string }) {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [visibleCount, setVisibleCount] = useState(21)
 
@@ -18,10 +19,19 @@ export default function Contracts({ projectId }: { projectId: string }) {
     const loadContracts = async () => {
       try {
         setIsLoading(true)
+        setError(null)
+        console.log('Contracts component: Loading contracts for projectId:', projectId)
+        
+        if (!projectId) {
+          throw new Error('Project ID is required')
+        }
+        
         const contractsData = await fetchContractsByProjectId(projectId)
+        console.log('Contracts component: Contracts loaded:', contractsData)
         setContracts(contractsData)
       } catch (error) {
-        console.error('Error loading contracts:', error)
+        console.error('Contracts component: Error loading contracts:', error)
+        setError(error instanceof Error ? error.message : 'Error loading contracts')
       } finally {
         setIsLoading(false)
       }
@@ -47,11 +57,33 @@ export default function Contracts({ projectId }: { projectId: string }) {
 
   const refreshContracts = async () => {
     try {
+      setError(null)
       const contractsData = await fetchContractsByProjectId(projectId)
       setContracts(contractsData)
     } catch (error) {
       console.error('Error refreshing contracts:', error)
+      setError(error instanceof Error ? error.message : 'Error refreshing contracts')
     }
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-2xl font-semibold">Contratos</h2>
+        <div className="flex items-center justify-center min-h-[300px]">
+          <div className="text-center">
+            <div className="text-red-600 text-lg mb-2">Error al cargar contratos</div>
+            <div className="text-gray-600 mb-4">{error}</div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
+            >
+              Recargar página
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

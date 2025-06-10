@@ -15,38 +15,6 @@ import {
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-// Additional interfaces for database responses
-interface ContractWithMembers {
-  id: string;
-  project_id: string;
-  name: string;
-  contract_members: ContractMemberWithUser | ContractMemberWithUser[];
-  required_documents: RequiredDocument | RequiredDocument[];
-}
-
-interface ContractMemberWithUser {
-  id: string;
-  status: string;
-  contract_url?: string;
-  status_juridico?: string;
-  ending?: string;
-  user: DbUser | DbUser[];
-  contractual_documents: ContractualDoc | ContractualDoc[];
-}
-
-interface RequiredDocument {
-  id: string;
-  name: string;
-  type: string;
-  due_date?: string;
-}
-
-interface ContractualDoc {
-  id: string;
-  required_document_id: string;
-  url?: string;
-}
-
 // Interface for invitation database response
 interface InvitationDbResponse {
   id: string;
@@ -73,30 +41,53 @@ interface InvitationDbResponse {
  * @returns The project data
  */
 export async function fetchProjectById(projectId: string): Promise<ContractualProject> {
-  const supabase = await createClient()
-  
-  const { data, error } = await supabase
-    .from('contractual_projects')
-    .select('*')
-    .eq('id', projectId)
-    .single()
+  try {
+    console.log('fetchProjectById called with projectId:', projectId)
+    
+    if (!projectId) {
+      throw new Error('Project ID is required')
+    }
 
-  if (error) {
-    console.error("Error fetching project:", error.message)
-    throw new Error(`Failed to fetch project by ID: ${error.message}`)
-  }
+    const supabase = await createClient()
+    
+    console.log('Supabase client created, executing query...')
+    
+    const { data, error } = await supabase
+      .from('contractual_projects')
+      .select('*')
+      .eq('id', projectId)
+      .single()
 
-  const typedData = data as DbContractualProject
+    if (error) {
+      console.error("Error fetching project:", error)
+      throw new Error(`Failed to fetch project by ID: ${error.message}`)
+    }
+    
+    console.log('Project query successful, data:', data)
 
-  return {
-    id: typedData.id,
-    name: typedData.name,
-    organizationId: typedData.organization_id,
-    createdAt: typedData.created_at,
-    updatedAt: typedData.updated_at,
-    deletedAt: typedData.deleted_at,
-    signature: typedData.signature,
-    contratanteData: typedData.contratante_data
+    if (!data) {
+      throw new Error('Project not found')
+    }
+
+    const typedData = data as DbContractualProject
+
+    const result = {
+      id: typedData.id,
+      name: typedData.name,
+      organizationId: typedData.organization_id,
+      createdAt: typedData.created_at,
+      updatedAt: typedData.updated_at,
+      deletedAt: typedData.deleted_at,
+      signature: typedData.signature,
+      contratanteData: typedData.contratante_data
+    }
+    
+    console.log('fetchProjectById result:', result)
+    return result
+    
+  } catch (error) {
+    console.error('Unexpected error in fetchProjectById:', error)
+    throw error
   }
 }
 
@@ -199,29 +190,52 @@ export async function removeProjectSignature(projectId: string): Promise<boolean
  * @returns Array of contracts
  */
 export async function fetchContractsByProjectId(projectId: string): Promise<Contract[]> {
-  const supabase = await createClient()
-  
-  const { data, error } = await supabase
-    .from('contracts')
-    .select('*')
-    .eq('project_id', projectId)
-    .is('deleted_at', null)
+  try {
+    console.log('fetchContractsByProjectId called with projectId:', projectId)
+    
+    if (!projectId) {
+      throw new Error('Project ID is required')
+    }
 
-  if (error) {
-    console.error("Error fetching contracts:", error.message)
-    throw new Error(`Failed to fetch contracts: ${error.message}`)
+    const supabase = await createClient()
+    
+    console.log('Supabase client created, executing query...')
+    
+    const { data, error } = await supabase
+      .from('contracts')
+      .select('*')
+      .eq('project_id', projectId)
+      .is('deleted_at', null)
+
+    if (error) {
+      console.error("Error fetching contracts:", error)
+      throw new Error(`Failed to fetch contracts: ${error.message}`)
+    }
+
+    console.log('Contracts query successful, data:', data)
+
+    if (!data) {
+      return []
+    }
+
+    const result = data.map((contract: DbContract) => ({
+      id: contract.id,
+      name: contract.name,
+      projectId: contract.project_id,
+      contractDraftUrl: contract.contract_draft_url,
+      status: contract.status,
+      createdAt: contract.created_at,
+      updatedAt: contract.updated_at,
+      deletedAt: contract.deleted_at
+    }))
+    
+    console.log('fetchContractsByProjectId result:', result)
+    return result
+    
+  } catch (error) {
+    console.error('Unexpected error in fetchContractsByProjectId:', error)
+    throw error
   }
-
-  return data.map((contract: DbContract) => ({
-    id: contract.id,
-    name: contract.name,
-    projectId: contract.project_id,
-    contractDraftUrl: contract.contract_draft_url,
-    status: contract.status,
-    createdAt: contract.created_at,
-    updatedAt: contract.updated_at,
-    deletedAt: contract.deleted_at
-  }))
 }
 
 /**
@@ -364,42 +378,85 @@ export async function updateContractDraftUrl(contractId: string, newDraftUrl: st
  * @returns Array of invitations
  */
 export async function fetchInvitationsByProjectId(projectId: string): Promise<Invitation[]> {
-  const supabase = await createClient()
+  try {
+    console.log('fetchInvitationsByProjectId called with projectId:', projectId)
+    
+    if (!projectId) {
+      throw new Error('Project ID is required')
+    }
 
-  const { data, error } = await supabase
-    .from("contract_members")
-    .select(`
-      id,
-      status,
-      invited_at,
-      accepted_at,
-      user:users(id, username, email),
-      contracts(name, project_id)
-    `)
-    .eq("contracts.project_id", projectId)
+    const supabase = await createClient()
 
-  if (error) {
-    console.error("Error fetching invitations:", error.message)
-    throw new Error(`Failed to fetch invitations: ${error.message}`)
+    console.log('Supabase client created, fetching project contracts...')
+
+    // First, get all contracts for this project
+    const { data: projectContracts, error: contractsError } = await supabase
+      .from("contracts")
+      .select("id")
+      .eq("project_id", projectId)
+      .is("deleted_at", null)
+
+    if (contractsError) {
+      console.error("Error fetching project contracts:", contractsError)
+      throw new Error(`Failed to fetch project contracts: ${contractsError.message}`)
+    }
+
+    console.log('Project contracts fetched:', projectContracts)
+
+    if (!projectContracts || projectContracts.length === 0) {
+      console.log('No contracts found for project, returning empty array')
+      return []
+    }
+
+    const contractIds = projectContracts.map(c => c.id)
+    console.log('Contract IDs to fetch invitations for:', contractIds)
+
+    // Now get contract members for these contracts
+    const { data, error } = await supabase
+      .from("contract_members")
+      .select(`
+        id,
+        status,
+        invited_at,
+        accepted_at,
+        contract_id,
+        user:users(id, username, email),
+        contracts(name, project_id)
+      `)
+      .in("contract_id", contractIds)
+
+    if (error) {
+      console.error("Error fetching invitations:", error)
+      throw new Error(`Failed to fetch invitations: ${error.message}`)
+    }
+
+    console.log('Contract members fetched:', data)
+
+    if (!data) {
+      return []
+    }
+
+    const result = data.map((invitation: InvitationDbResponse) => {
+      const userObj = Array.isArray(invitation.user) ? invitation.user[0] : invitation.user;
+      const contractsObj = Array.isArray(invitation.contracts) ? invitation.contracts[0] : invitation.contracts;
+
+      return {
+        id: invitation.id,
+        contractName: contractsObj?.name ?? '',
+        email: userObj?.email ?? '',
+        status: invitation.status,
+        invitedAt: invitation.invited_at,
+        acceptedAt: invitation.accepted_at
+      };
+    });
+    
+    console.log('fetchInvitationsByProjectId result:', result)
+    return result
+    
+  } catch (error) {
+    console.error('Unexpected error in fetchInvitationsByProjectId:', error)
+    throw error
   }
-
-  if (!data) {
-    return []
-  }
-
-  return data.map((invitation: InvitationDbResponse) => {
-    const userObj = Array.isArray(invitation.user) ? invitation.user[0] : invitation.user;
-    const contractsObj = Array.isArray(invitation.contracts) ? invitation.contracts[0] : invitation.contracts;
-
-    return {
-      id: invitation.id,
-      contractName: contractsObj?.name ?? '',
-      email: userObj?.email ?? '',
-      status: invitation.status,
-      invitedAt: invitation.invited_at,
-      acceptedAt: invitation.accepted_at
-    };
-  });
 }
 
 /**
@@ -546,82 +603,150 @@ export async function deleteInvitation(invitationId: string): Promise<boolean> {
 export async function fetchProjectDocumentsByProjectId(projectId: string): Promise<ProjectDocument[]> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from("contracts")
-    .select(`
-      id,
-      project_id,
-      name,
-      contract_members(
+  try {
+    console.log('fetchProjectDocumentsByProjectId called with projectId:', projectId)
+    
+    if (!projectId) {
+      throw new Error('Project ID is required')
+    }
+
+    console.log('Supabase client created, fetching contracts...')
+
+    // First, get all contracts for this project
+    const { data: contracts, error: contractsError } = await supabase
+      .from("contracts")
+      .select("id, name")
+      .eq("project_id", projectId)
+      .is("deleted_at", null)
+
+    if (contractsError) {
+      console.error("Error fetching contracts:", contractsError)
+      throw new Error(`Failed to fetch contracts: ${contractsError.message}`)
+    }
+
+    console.log('Contracts fetched:', contracts)
+
+    if (!contracts || contracts.length === 0) {
+      console.log('No contracts found, returning empty array')
+      return []
+    }
+
+    const contractIds = contracts.map(c => c.id)
+    console.log('Contract IDs:', contractIds)
+
+    // Get contract members for these contracts
+    const { data: contractMembers, error: membersError } = await supabase
+      .from("contract_members")
+      .select(`
         id,
         status,
         contract_url,
         status_juridico,
         ending,
-        user:users(id, username, email),
-        contractual_documents(id, required_document_id, url)
-      ),
-      required_documents(id, name, type, due_date)
-    `)
-    .eq("project_id", projectId)
+        contract_id,
+        user_id
+      `)
+      .in("contract_id", contractIds)
 
-  if (error) {
-    console.error("Error fetching project documents:", error.message)
-    throw new Error(`Failed to fetch project documents: ${error.message}`)
+    if (membersError) {
+      console.error("Error fetching contract members:", membersError)
+      throw new Error(`Failed to fetch contract members: ${membersError.message}`)
+    }
+
+    console.log('Contract members fetched:', contractMembers)
+
+    // Get users for the contract members
+    const userIds = contractMembers?.map(m => m.user_id) || []
+    console.log('User IDs to fetch:', userIds)
+    
+    const { data: users, error: usersError } = await supabase
+      .from("users")
+      .select("id, username, email")
+      .in("id", userIds)
+
+    if (usersError) {
+      console.error("Error fetching users:", usersError)
+      throw new Error(`Failed to fetch users: ${usersError.message}`)
+    }
+
+    console.log('Users fetched:', users)
+
+    // Get required documents for these contracts
+    const { data: requiredDocs, error: requiredDocsError } = await supabase
+      .from("required_documents")
+      .select("id, name, type, due_date, contract_id")
+      .in("contract_id", contractIds)
+      .is("deleted_at", null)
+
+    if (requiredDocsError) {
+      console.error("Error fetching required documents:", requiredDocsError)
+      throw new Error(`Failed to fetch required documents: ${requiredDocsError.message}`)
+    }
+
+    console.log('Required documents fetched:', requiredDocs)
+
+    // Get contractual documents for the contract members
+    const memberIds = contractMembers?.map(m => m.id) || []
+    console.log('Member IDs to fetch contractual documents for:', memberIds)
+    
+    const { data: contractualDocs, error: contractualDocsError } = await supabase
+      .from("contractual_documents")
+      .select("id, required_document_id, url, contract_member_id")
+      .in("contract_member_id", memberIds)
+
+    if (contractualDocsError) {
+      console.error("Error fetching contractual documents:", contractualDocsError)
+      throw new Error(`Failed to fetch contractual documents: ${contractualDocsError.message}`)
+    }
+
+    console.log('Contractual documents fetched:', contractualDocs)
+
+    // Now build the result by combining all the data
+    const result: ProjectDocument[] = []
+
+    contractMembers?.forEach(member => {
+      const contract = contracts.find(c => c.id === member.contract_id)
+      const user = users?.find(u => u.id === member.user_id)
+      const memberRequiredDocs = requiredDocs?.filter(rd => rd.contract_id === member.contract_id) || []
+
+      if (contract && user) {
+        const projectDoc: ProjectDocument = {
+          contractId: contract.id,
+          projectId: projectId,
+          contractName: contract.name,
+          contractMemberId: member.id,
+          username: user.username ?? "",
+          email: user.email ?? "",
+          contractUrl: member.contract_url,
+          status: member.status,
+          statusJuridico: member.status_juridico,
+          ending: member.ending,
+          requiredDocuments: memberRequiredDocs.map(reqDoc => {
+            const matchedDoc = contractualDocs?.find(
+              cdoc => cdoc.required_document_id === reqDoc.id && cdoc.contract_member_id === member.id
+            )
+            return {
+              id: reqDoc.id,
+              name: reqDoc.name,
+              type: reqDoc.type,
+              dueDate: reqDoc.due_date,
+              contractualDocumentId: matchedDoc?.id,
+              contractualRequiredDocumentId: matchedDoc?.required_document_id,
+              url: matchedDoc?.url,
+            }
+          }),
+        }
+        result.push(projectDoc)
+      }
+    })
+
+    console.log('fetchProjectDocumentsByProjectId result:', result)
+    return result
+
+  } catch (error) {
+    console.error("Unexpected error in fetchProjectDocumentsByProjectId:", error)
+    throw new Error(`Failed to fetch project documents: ${error}`)
   }
-
-  if (!data) {
-    return []
-  }
-
-  const mappedData = data.flatMap((contract: ContractWithMembers) => {
-    const members = Array.isArray(contract.contract_members)
-      ? contract.contract_members
-      : [contract.contract_members];
-
-    return members.map((member: ContractMemberWithUser) => {
-      const userData = Array.isArray(member.user)
-        ? member.user[0]
-        : member.user;
-
-      const contractualDocs = Array.isArray(member.contractual_documents)
-        ? member.contractual_documents
-        : [member.contractual_documents];
-
-      const requiredDocs = Array.isArray(contract.required_documents)
-        ? contract.required_documents
-        : [contract.required_documents];
-
-      return {
-        contractId: contract.id,
-        projectId: contract.project_id,
-        contractName: contract.name,
-        contractMemberId: member.id,
-        username: userData?.username ?? "",
-        email: userData?.email ?? "",
-        contractUrl: member.contract_url,
-        status: member.status,
-        statusJuridico: member.status_juridico,
-        ending: member.ending,
-        requiredDocuments: requiredDocs.map((reqDoc: RequiredDocument) => {
-          const matchedDoc = contractualDocs.find(
-            (cdoc: ContractualDoc) => cdoc.required_document_id === reqDoc.id
-          );
-          return {
-            id: reqDoc.id,
-            name: reqDoc.name,
-            type: reqDoc.type,
-            dueDate: reqDoc.due_date,
-            contractualDocumentId: matchedDoc?.id,
-            contractualRequiredDocumentId: matchedDoc?.required_document_id,
-            url: matchedDoc?.url,
-          };
-        }),
-      };
-    });
-  });
-
-  return mappedData
 }
 
 // ========================================
