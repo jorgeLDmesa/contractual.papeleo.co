@@ -22,7 +22,6 @@ export async function sendContactEmail(formData: FormData): Promise<void> {
     }
 
     const contractsText = contracts || 'No especificado'
-    const messageText = message || 'Sin mensaje adicional'
     const demoText = demo ? 'Sí' : 'No'
 
     await resend.emails.send({
