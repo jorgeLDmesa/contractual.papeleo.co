@@ -73,7 +73,6 @@ export async function getPrecontractualDocuments(contractMemberId: string) {
       }
     })
     
-    console.log('Precontractual documents fetched successfully:', documentsWithUploads);
     
     return {
       success: true,

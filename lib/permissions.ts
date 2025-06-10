@@ -46,7 +46,6 @@ export async function logUserPermissionsForModuleType(
 ): Promise<void> {
   const supabase = createClient();
   
-  console.log(`Debugging permisos para usuario ${userId}, módulo ${moduleId}, tipo ${projectType}`);
   
   const { data, error } = await supabase
     .from('user_module_projects')

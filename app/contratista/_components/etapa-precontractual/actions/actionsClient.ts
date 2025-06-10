@@ -29,8 +29,6 @@ async function verifyDocument(file: File, documentName: string): Promise<{ succe
 
     const result = await response.json();
     
-    console.log('Gemini verification result:', result);
-    
     if (!response.ok) {
       throw new Error(result.error || 'Error verifying document');
     }
@@ -40,7 +38,6 @@ async function verifyDocument(file: File, documentName: string): Promise<{ succe
       isValid: result.isValid
     };
   } catch (error) {
-    console.error('Error verifying document:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown verification error'
@@ -61,22 +58,12 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
     const contractualDocumentId = formData.get('contractualDocumentId') as string
     const requiredDocumentId = formData.get('requiredDocumentId') as string
 
-    console.log('Upload parameters:', {
-      contractualDocumentId,
-      memberId,
-      contractId,
-      fileName: file?.name,
-      documentName,
-      requiredDocumentId
-    });
-
     if (!file) {
       throw new Error('File not provided')
     }
     
     // Verify document if documentName is provided
     if (documentName) {
-      console.log('Verifying document with AI...');
       const verification = await verifyDocument(file, documentName);
       
       if (!verification.success) {
@@ -84,14 +71,11 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
       }
       
       if (!verification.isValid) {
-        console.log('🤖 AI validation result: Document does not match expected type');
         return {
           success: false,
           error: '❌ La IA detectó que este documento no es el correcto'
         };
       }
-      
-      console.log('Document verified successfully');
     }
 
     let finalContractualDocumentId = contractualDocumentId;
@@ -102,7 +86,6 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
         throw new Error('Required document ID not provided');
       }
       
-      console.log('Creating new contractual_documents record...');
       const { data: newDoc, error: createError } = await supabase
         .from('contractual_documents')
         .insert({
@@ -116,12 +99,10 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
         .single();
 
       if (createError) {
-        console.error('Error creating contractual document:', createError);
         throw new Error(`Error creating document record: ${createError.message}`);
       }
 
       finalContractualDocumentId = newDoc.id;
-      console.log('Created new contractual document with ID:', finalContractualDocumentId);
     }
 
     const sanitizedFileName = sanitizeFileName(file.name)
@@ -136,7 +117,6 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
       })
 
     if (storageError) {
-      console.error('Storage upload error:', storageError);
       throw new Error(`Error uploading file: ${storageError.message}`)
     }
 
@@ -146,10 +126,8 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
       .getPublicUrl(path)
 
     const fileUrl = urlData?.publicUrl || ''
-    console.log('File uploaded, URL:', fileUrl);
 
     // 3. Update the document URL in the database using contractual_document_id
-    console.log('Updating document with ID:', finalContractualDocumentId);
     const { data, error: updateError } = await supabase
       .from('contractual_documents')
       .update({
@@ -161,11 +139,9 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
       .single()
 
     if (updateError) {
-      console.error('Database update error:', updateError);
       throw new Error(`Error updating document: ${updateError.message}`)
     }
 
-    console.log('Document updated successfully:', data);
     return {
       success: true,
       data: {
@@ -174,7 +150,6 @@ export async function uploadPrecontractualDocument(formData: FormData, documentN
       }
     }
   } catch (err) {
-    console.error('Error in uploadPrecontractualDocument:', err)
     return {
       success: false,
       error: (err as Error).message
@@ -194,14 +169,6 @@ export async function replacePrecontractualDocument(formData: FormData, document
     const memberId = formData.get('memberId') as string
     const contractId = formData.get('contractId') as string
 
-    console.log('Replace parameters:', {
-      contractualDocumentId,
-      memberId,
-      contractId,
-      fileName: file?.name,
-      documentName
-    });
-
     if (!file) {
       throw new Error('File not provided')
     }
@@ -212,7 +179,6 @@ export async function replacePrecontractualDocument(formData: FormData, document
 
     // Verify document if documentName is provided
     if (documentName) {
-      console.log('Verifying replacement document with AI...');
       const verification = await verifyDocument(file, documentName);
       
       if (!verification.success) {
@@ -220,14 +186,11 @@ export async function replacePrecontractualDocument(formData: FormData, document
       }
       
       if (!verification.isValid) {
-        console.log('🤖 AI validation result: Replacement document does not match expected type');
         return {
           success: false,
           error: '❌ La IA detectó que este documento no es el correcto'
         };
       }
-      
-      console.log('Replacement document verified successfully');
     }
 
     const sanitizedFileName = sanitizeFileName(file.name)
@@ -241,7 +204,6 @@ export async function replacePrecontractualDocument(formData: FormData, document
       })
 
     if (storageError) {
-      console.error('Storage upload error:', storageError);
       throw new Error(`Error uploading file: ${storageError.message}`)
     }
 
@@ -251,10 +213,8 @@ export async function replacePrecontractualDocument(formData: FormData, document
       .getPublicUrl(path)
 
     const fileUrl = urlData?.publicUrl || ''
-    console.log('File replaced, new URL:', fileUrl);
 
     // 3. Update the document URL in the database using contractual_document_id
-    console.log('Updating document with ID:', contractualDocumentId);
     const { data, error: updateError } = await supabase
       .from('contractual_documents')
       .update({
@@ -266,11 +226,9 @@ export async function replacePrecontractualDocument(formData: FormData, document
       .single()
 
     if (updateError) {
-      console.error('Database update error:', updateError);
       throw new Error(`Error updating document: ${updateError.message}`)
     }
 
-    console.log('Document updated successfully:', data);
     return {
       success: true,
       data: {
@@ -279,7 +237,6 @@ export async function replacePrecontractualDocument(formData: FormData, document
       }
     }
   } catch (err) {
-    console.error('Error in replacePrecontractualDocument:', err)
     return {
       success: false,
       error: (err as Error).message
@@ -324,7 +281,6 @@ export async function createDocumentSignedUrl(fileUrl: string): Promise<{
       .createSignedUrl(storagePath, 3600)
 
     if (error) {
-      console.error('Error creating signed URL:', error)
       throw new Error(`Error al crear URL firmada: ${error.message}`)
     }
 
@@ -337,7 +293,6 @@ export async function createDocumentSignedUrl(fileUrl: string): Promise<{
       data: data.signedUrl
     }
   } catch (err) {
-    console.error('Error in createDocumentSignedUrl:', err)
     return {
       success: false,
       error: (err as Error).message

@@ -4,9 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Intentando crear tabla en Google Docs...');
-    
-    // Obtener el input del usuario
+        // Obtener el input del usuario
     const body = await request.json();
     const { objetoParafraseado } = body;
 
@@ -201,7 +199,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Paso 5: Generar texto con IA para el objeto contractual
-    console.log('Generando objeto contractual con IA...');
     
     // Initialize Google Generative AI
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
@@ -219,7 +216,6 @@ Redacta un objeto contractual profesional y completo basado en la información p
     const objetoContractual = response.text;
 
     // Paso 6: Insertar el texto generado después de la tabla
-    console.log('Insertando objeto contractual en el documento...');
     
     // Obtener el documento final para encontrar dónde insertar el texto
     const docForText = await docs.documents.get({
@@ -294,7 +290,6 @@ Redacta un objeto contractual profesional y completo basado en la información p
       },
     });
 
-    console.log('Tabla y objeto contractual creados exitosamente en Google Docs');
 
     return NextResponse.json({ 
       success: true, 

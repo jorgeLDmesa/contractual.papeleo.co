@@ -65,7 +65,6 @@ export default function ActionMenu({ memberDocument, contractMemberId }: ActionM
       
       if (!result.success) {
         // If it's an AI validation failure, show the message without throwing an error
-        console.log('Replace failed:', result.error);
         toast.error(result.error || 'Error al reemplazar el documento', {
           duration: 6000
         });

@@ -117,16 +117,13 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
       
       setIsLoadingPreSuggestions(true);
       try {
-        console.log("Solicitando sugerencias precontractuales para:", search);
         const suggestions = await getDocumentSuggestions(search, 'precontractual');
-        console.log("Sugerencias precontractuales recibidas:", suggestions);
         
         // Solo actualizar si el input sigue enfocado
         if (isPreContractualInputFocused) {
           setPreContractualSuggestions(suggestions);
         }
       } catch (error) {
-        console.error("Error al obtener sugerencias precontractuales:", error);
         if (isPreContractualInputFocused) {
           toast.warning("No se pudieron cargar sugerencias. Por favor, continúe escribiendo manualmente.");
         }
@@ -147,16 +144,13 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
       
       setIsLoadingContractualSuggestions(true);
       try {
-        console.log("Solicitando sugerencias contractuales para:", search);
         const suggestions = await getDocumentSuggestions(search, 'contractual');
-        console.log("Sugerencias contractuales recibidas:", suggestions);
         
         // Solo actualizar si el input sigue enfocado
         if (isContractualInputFocused) {
           setContractualSuggestions(suggestions);
         }
       } catch (error) {
-        console.error("Error al obtener sugerencias contractuales:", error);
         if (isContractualInputFocused) {
           toast.warning("No se pudieron cargar sugerencias. Por favor, continúe escribiendo manualmente.");
         }
@@ -320,36 +314,23 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
       }
 
       // Crear el contrato
-      console.log('Estado antes de crear contrato:', {
-        name: newContract.name,
-        preContractualDocs: newContract.preContractualDocs,
-        contractualDocs: newContract.contractualDocs
-      })
-      
       const createdContract = await createContract(formData)
-      console.log('Contrato creado:', createdContract)
 
       // Crear los documentos requeridos después de crear el contrato exitosamente
       if (createdContract.id) {
-        console.log('Iniciando creación de documentos. Precontractuales:', newContract.preContractualDocs.length, 'Contractuales:', newContract.contractualDocs.length)
         
         // Crear documentos precontractuales
         for (const doc of newContract.preContractualDocs) {
           const docName = typeof doc === 'string' ? doc : doc.name;
           const templateId = typeof doc === 'object' && doc.template ? doc.template : undefined;
           
-          console.log('Creando documento precontractual:', docName, 'con template:', templateId)
-          
           try {
             const result = await addDocument(createdContract.id, docName, 'precontractual', undefined, templateId);
-            console.log('Resultado documento precontractual:', result)
             
             if (!result.success) {
-              console.error('Error al crear documento precontractual:', result.error);
               toast.warning(`No se pudo crear el documento precontractual "${docName}": ${result.error}`);
             }
           } catch (docError) {
-            console.error('Error al crear documento precontractual:', docError);
             toast.warning(`Error al crear documento precontractual "${docName}"`);
             // No interrumpimos el proceso si falla la creación de un documento
           }
@@ -360,24 +341,17 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
           const docName = typeof doc === 'string' ? doc : doc.name;
           const templateId = typeof doc === 'object' && doc.template ? doc.template : undefined;
           
-          console.log('Creando documento contractual:', docName, 'con template:', templateId)
-          
           try {
             const result = await addDocument(createdContract.id, docName, 'contractual', undefined, templateId);
-            console.log('Resultado documento contractual:', result)
             
             if (!result.success) {
-              console.error('Error al crear documento contractual:', result.error);
               toast.warning(`No se pudo crear el documento contractual "${docName}": ${result.error}`);
             }
           } catch (docError) {
-            console.error('Error al crear documento contractual:', docError);
             toast.warning(`Error al crear documento contractual "${docName}"`);
             // No interrumpimos el proceso si falla la creación de un documento
           }
         }
-      } else {
-        console.error('No se pudo obtener el ID del contrato creado:', createdContract)
       }
 
       // Resetear estados
@@ -399,7 +373,6 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
       // Llamar a la función onContractCreated si está definida
       onContractCreated?.()
     } catch (error) {
-      console.error('Error al crear el contrato:', error);
       toast.error(error instanceof Error ? error.message : "No se pudo crear el contrato. Intente de nuevo más tarde.");
     } finally {
       setIsLoading(false);

@@ -20,14 +20,12 @@ export default function Contracts({ projectId }: { projectId: string }) {
       try {
         setIsLoading(true)
         setError(null)
-        console.log('Contracts component: Loading contracts for projectId:', projectId)
         
         if (!projectId) {
           throw new Error('Project ID is required')
         }
         
         const contractsData = await fetchContractsByProjectId(projectId)
-        console.log('Contracts component: Contracts loaded:', contractsData)
         setContracts(contractsData)
       } catch (error) {
         console.error('Contracts component: Error loading contracts:', error)

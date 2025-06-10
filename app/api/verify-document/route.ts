@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
         }
     ];
 
-    console.log(`Verifying document "${file.name}" against expected type: "${documentName}"`);
 
     const response = await ai.models.generateContent({
         model: "gemini-2.0-flash",
@@ -50,7 +49,6 @@ export async function POST(request: NextRequest) {
     const responseText = response.text?.trim().toLowerCase() || '';
     const isValid = responseText === 'true';
 
-    console.log(`Gemini response: "${responseText}" -> isValid: ${isValid}`);
 
     return NextResponse.json({ 
       success: true, 

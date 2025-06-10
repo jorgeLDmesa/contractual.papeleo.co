@@ -134,7 +134,6 @@ export default function PrecontractualDialog({
       !hasNotifiedThisSession && 
       onPhaseComplete
     ) {
-      console.log('🎉 Phase completed during this session - notifying parent')
       
       const timeout = setTimeout(() => {
         onPhaseComplete();

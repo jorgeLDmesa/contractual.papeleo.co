@@ -24,7 +24,6 @@ export default function ProjectPage() {
         setIsLoading(true)
         setError(null)
         
-        console.log('ProjectPage: Loading data for projectId:', projectId)
         
         if (!projectId) {
           throw new Error('Project ID is missing')
@@ -32,7 +31,6 @@ export default function ProjectPage() {
 
         // Only fetch project data here - let individual components handle their own data
         const project = await fetchProjectById(projectId)
-        console.log('ProjectPage: Project data loaded:', project)
         setSelectedProject(project)
         
       } catch (error) {

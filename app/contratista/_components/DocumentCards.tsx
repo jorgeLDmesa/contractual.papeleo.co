@@ -63,6 +63,19 @@ export default function DocumentCards({
     }
   };
 
+  // Handler para cuando se completa la fase contractual
+  const handleContractualComplete = () => {
+    toast("¡Documentos de seguimiento completados!",{
+      description: "Todos los documentos de seguimiento han sido subidos correctamente.",
+      duration: 4000,
+    });
+    
+    // Llamar al callback del padre para refrescar el estado
+    if (onPhaseComplete) {
+      onPhaseComplete();
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 px-2 md:px-0">
       {/* First Card: Pre-Contrato - Ahora con Dialog y callback */}
@@ -173,6 +186,7 @@ export default function DocumentCards({
         <ContractualDialog
           contractMemberId={selectedContract}
           contractName={currentContract?.name}
+          onPhaseComplete={handleContractualComplete}
         >
           <DocumentCard
             title="Documentos de Seguimiento"

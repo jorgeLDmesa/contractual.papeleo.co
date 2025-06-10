@@ -18,7 +18,6 @@ export async function getDocumentSuggestions(
   if (!search || search.length < 2) return [];
 
   try {
-    console.log(`Buscando documentos de tipo: ${type} con texto: "${search}"`);
     
     // Crear una nueva instancia del cliente para cada consulta
     const supabase = createClient();
@@ -50,7 +49,6 @@ export async function getDocumentSuggestions(
           
           // Si encontramos resultados, procesarlos
           if (filteredData.length > 0) {
-            console.log(`Documentos contractuales encontrados: ${filteredData.length}`);
             
             // Contar ocurrencias de nombres únicos
             const nameCount: Record<string, number> = {};
@@ -67,9 +65,8 @@ export async function getDocumentSuggestions(
         }
         
         // Si llegamos aquí, la primera opción falló
-        console.log("La opción 1 para contractual falló, intentando opción alternativa");
       } catch (err) {
-        console.error("Error en la opción 1 para contractual:", err);
+        
       }
       
       // Volver a un enfoque más simple como fallback
@@ -84,15 +81,12 @@ export async function getDocumentSuggestions(
       const { data, error } = await query;
       
       if (error) {
-        console.error("Error en consulta precontractual:", error);
         return [];
       }
       
       if (!data || data.length === 0) {
         return [];
       }
-      
-      console.log(`Documentos precontractuales encontrados: ${data.length}`);
       
       // Contar ocurrencias
       const nameCount: Record<string, number> = {};
@@ -107,7 +101,6 @@ export async function getDocumentSuggestions(
         .slice(0, 5);
     }
   } catch (generalError) {
-    console.error("Error general en getDocumentSuggestions:", generalError);
     return [];
   }
   
@@ -155,7 +148,6 @@ export async function uploadContractDraftFile(
       });
       
     if (uploadError) {
-      console.error('Error al subir archivo a Supabase:', uploadError);
       return { url: null, filePath: null, error: uploadError.message };
     }
     
@@ -165,13 +157,11 @@ export async function uploadContractDraftFile(
         .from("contractual")
         .getPublicUrl(uploadData.path);
         
-      console.log('Archivo subido correctamente:', publicUrl);
       return { url: publicUrl, filePath, error: null };
     }
     
     return { url: null, filePath, error: null };
   } catch (err) {
-    console.error('Error inesperado al subir archivo:', err);
     return { 
       url: null, 
       filePath: null,
@@ -215,13 +205,11 @@ export async function replaceContractDraftFile(
           .remove([storagePath]);
           
         if (deleteError) {
-          console.warn('No se pudo eliminar el archivo antiguo:', deleteError);
           // Continuamos con la subida aunque no se haya podido eliminar
         } else {
-          console.log('Archivo antiguo eliminado correctamente:', storagePath);
+          
         }
       } catch (deleteErr) {
-        console.warn('Error al intentar eliminar el archivo antiguo:', deleteErr);
         // Continuamos con la subida aunque haya habido un error
       }
     }
@@ -229,7 +217,6 @@ export async function replaceContractDraftFile(
     // Subimos el nuevo archivo utilizando la función existente
     return await uploadContractDraftFile(file, projectId, contractName);
   } catch (err) {
-    console.error('Error inesperado al reemplazar archivo:', err);
     return { 
       url: null, 
       filePath: null,
@@ -250,7 +237,6 @@ export async function fetchContractTemplates() {
     .eq('category', 'CONTRATO');
   
   if (error) {
-    console.error("Error al obtener las plantillas:", error);
     return [];
   }
   
@@ -266,7 +252,6 @@ export async function getCurrentUser() {
   const { data: { user }, error } = await supabase.auth.getUser();
   
   if (error) {
-    console.error("Error al obtener el usuario:", error);
     return null;
   }
   
@@ -300,7 +285,6 @@ export async function createDocumentFromTemplate(
     .single();
   
   if (error) {
-    console.error("Error al crear el documento desde la plantilla:", error);
     return null;
   }
   
@@ -323,13 +307,11 @@ export async function fetchContractDocuments(contractId: string) {
       .order('name', { ascending: true });
     
     if (error) {
-      console.error("Error fetching contract documents:", error);
       return [];
     }
     
     return data || [];
   } catch (error) {
-    console.error("Unexpected error fetching contract documents:", error);
     return [];
   }
 }

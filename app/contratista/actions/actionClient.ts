@@ -32,11 +32,9 @@ export async function handlePreviewMemberDocument(fileUrl: string): Promise<bool
       throw new Error('URL del documento no proporcionada');
     }
 
-    console.log('handlePreviewMemberDocument called with:', fileUrl);
 
     // Handle URLs from templates directly
     if (fileUrl.startsWith('https://papeleo.co/docgen')) {
-      console.log('Opening template document directly:', fileUrl);
       const newWindow = window.open(fileUrl, '_blank');
       if (!newWindow) {
         throw new Error('El navegador bloqueó la apertura de la ventana. Por favor, permita las ventanas emergentes.');
@@ -47,7 +45,6 @@ export async function handlePreviewMemberDocument(fileUrl: string): Promise<bool
     // If it's not a full URL, treat it as a relative path within the 'contractual' bucket
     let urlToUse = fileUrl;
     if (!fileUrl.startsWith('http')) {
-      console.log('Treating as relative path within contractual bucket:', fileUrl);
       
       // Generate a signed URL for the file path
       const { success, data, error } = await createMemberDocumentSignedUrl(fileUrl);
@@ -70,7 +67,6 @@ export async function handlePreviewMemberDocument(fileUrl: string): Promise<bool
       urlToUse = data;
     }
 
-    console.log('Opening URL:', urlToUse);
     
     // Open in new tab with error handling
     const newWindow = window.open(urlToUse, '_blank');
@@ -125,7 +121,6 @@ async function createMemberDocumentSignedUrl(fileUrl: string): Promise<{
       }
     }
     
-    console.log('Creating signed URL for path:', storagePath);
     
     // Generate versions of the path that are likely to actually exist in storage
     const pathsToTry = [storagePath];
@@ -170,14 +165,12 @@ async function createMemberDocumentSignedUrl(fileUrl: string): Promise<{
     // List parent folder to help with debugging
     try {
       if (pathParts.length > 1) {
-        const parentFolder = pathParts.slice(0, -1).join('/');
-        console.log('Checking folder:', parentFolder);
+        const parentFolder = pathParts.slice(0, -1).join('/');  
         
         const { data: folderContents } = await supabase.storage
           .from('contractual')
           .list(parentFolder);
           
-        console.log('Folder contents:', folderContents);
         
         // If we found contents, add paths based on actual files in the folder
         if (folderContents && folderContents.length > 0) {
@@ -201,21 +194,18 @@ async function createMemberDocumentSignedUrl(fileUrl: string): Promise<{
       console.warn('Error listing folder contents:', error);
     }
     
-    console.log('Paths to try:', pathsToTry);
     
     // Try each path variation until we find one that works
     let signedUrl = null;
     let lastError: Error | null = null;
     
     for (const path of pathsToTry) {
-      console.log('Trying path:', path);
       try {
         const { data, error } = await supabase.storage
           .from('contractual')
           .createSignedUrl(path, EXPIRY_TIME);
           
         if (!error && data?.signedUrl) {
-          console.log('Success with path:', path);
           signedUrl = data.signedUrl;
           break;
         } else {

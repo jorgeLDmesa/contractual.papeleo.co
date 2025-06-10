@@ -23,12 +23,14 @@ interface ContractualDialogProps {
   contractMemberId: string;
   contractName?: string;
   children: React.ReactNode;
+  onPhaseComplete?: () => void;
 }
 
 export default function ContractualDialog({ 
   contractMemberId, 
   contractName,
-  children 
+  children,
+  onPhaseComplete 
 }: ContractualDialogProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -67,15 +69,11 @@ export default function ContractualDialog({
     const fetchDocuments = async () => {
       setIsLoading(true)
       try {
-        console.log('Fetching documents for contractMemberId:', contractMemberId);
         // Use getAllDocuments to fetch both regular and extra documents
         const result = await getAllDocuments(contractMemberId)
-        console.log('getAllDocuments result:', result);
         if (result.success && result.data) {
-          console.log('Setting document groups:', result.data);
           setDocumentGroups(result.data)
         } else {
-          console.error('Error fetching documents:', result.error)
           setDocumentGroups([])
         }
       } catch (error) {
@@ -122,8 +120,30 @@ export default function ContractualDialog({
     setSearchTerm(term)
   }
 
-  const handleDocumentUpdated = () => {
+  const handleDocumentUpdated = async () => {
     setRefreshKey(prev => prev + 1)
+    
+    // Check completion after state update
+    if (onPhaseComplete) {
+      // Re-fetch documents to get the latest state
+      try {
+        const result = await getAllDocuments(contractMemberId)
+        if (result.success && result.data) {
+          const groups = result.data
+          const totalDocs = groups.reduce((acc, group) => acc + group.docs.length, 0)
+          const uploadedDocs = groups.reduce((acc, group) => 
+            acc + group.docs.filter((doc: ContractualDocument) => doc.url).length, 0
+          )
+          
+          // If all documents are now uploaded, phase is complete
+          if (totalDocs > 0 && uploadedDocs === totalDocs) {
+            onPhaseComplete()
+          }
+        }
+      } catch (error) {
+        console.error('Error checking completion status:', error)
+      }
+    }
   }
 
   return (

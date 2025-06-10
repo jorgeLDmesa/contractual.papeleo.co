@@ -35,7 +35,6 @@ export function PrecontractualCard({ memberDocument, contractMemberId }: Precont
     
     setIsUploading(true);
     try {
-      console.log('Document for upload:', memberDocument);
       
       const formData = new FormData();
       formData.append('file', file);
@@ -49,7 +48,6 @@ export function PrecontractualCard({ memberDocument, contractMemberId }: Precont
       
       if (!result.success) {
         // If it's an AI validation failure, show the message without throwing an error
-        console.log('Upload failed:', result.error);
         toast.error(result.error || "Error al subir el documento", {
           duration: 6000
         });
@@ -74,7 +72,6 @@ export function PrecontractualCard({ memberDocument, contractMemberId }: Precont
 
   const handleCreateTemplate = useCallback(async () => {
     // Template handling will be implemented if needed
-    console.log("Template creation functionality will be implemented if needed");
   }, []);
 
   const hasTemplate = memberDocument.template_id !== null && memberDocument.template_id !== undefined;

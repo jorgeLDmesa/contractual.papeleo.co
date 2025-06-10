@@ -56,7 +56,6 @@ export async function getContractualDocuments(contractMemberId: string) {
       throw new Error(contractualError.message)
     }
     
-    console.log('Contractual docs found:', contractualDocs?.length || 0, contractualDocs);
 
     const allDocuments: ContractualDocument[] = [];
     
@@ -97,7 +96,6 @@ export async function getContractualDocuments(contractMemberId: string) {
       docs
     }))
     
-    console.log('Contractual documents grouped by month:', documentGroups);
     
     return {
       success: true,
@@ -164,7 +162,6 @@ export async function getContractualExtraDocuments(contractMemberId: string): Pr
       };
     }
     
-    console.log('Extra docs found:', extraDocs?.length || 0, extraDocs);
     
     // Group by month
     const groupedByMonth: { [key: string]: ContractualDocument[] } = {};
@@ -192,8 +189,7 @@ export async function getContractualExtraDocuments(contractMemberId: string): Pr
       month,
       docs
     }));
-    
-    console.log('Extra documents grouped by month:', result);
+
     
     return {
       success: true,
@@ -268,7 +264,6 @@ export async function getAllDocuments(contractMemberId: string): Promise<{
         return orderA - orderB;
       });
     
-    console.log('Final result - months found:', result.map(r => r.month));
     
     return {
       success: true,

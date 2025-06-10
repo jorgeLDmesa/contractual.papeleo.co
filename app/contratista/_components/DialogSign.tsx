@@ -131,7 +131,6 @@ export default function ContractDialog({ contract_draft_url, children, user_id, 
         // If the last segment matches the contractMemberId, remove it
         if (parts[parts.length - 1] === contractMemberId) {
           urlToUse = parts.slice(0, -1).join('/');
-          console.log("Removing appended contractMemberId from path:", urlToUse);
         }
       }
       
@@ -147,7 +146,6 @@ export default function ContractDialog({ contract_draft_url, children, user_id, 
         }
       } else {
         // Case 3: It's likely a relative path in the storage bucket
-        console.log("Handling relative path in storage bucket:", urlToUse);
         try {
           await handlePreviewMemberDocument(urlToUse);
         } catch (error) {

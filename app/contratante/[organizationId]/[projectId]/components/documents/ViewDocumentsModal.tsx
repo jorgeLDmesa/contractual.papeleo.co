@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 
 import DocumentCard from "./DocumentCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { ContractualDocumentsByMonth, getAllContractualDocuments, createContractualExtraDocument, getPrecontractualDocuments } from "./actionServer";
 import { PlusCircle, CalendarIcon } from "lucide-react";
 import { 
@@ -81,6 +81,13 @@ type ContractExtension = {
   extension_start_date: string;
   extension_end_date: string;
   extension_url: string;
+};
+
+// Tipo para el estado de carga
+type LoadingState = {
+  precontractual: boolean;
+  contractual: boolean;
+  extensions: boolean;
 };
 
 // Extension card to display contract extensions
@@ -162,11 +169,14 @@ const AddDocumentCard = ({ month, contractMemberId, onDocumentAdded }: {
         setDocumentName("");
         setIsDialogOpen(false);
         onDocumentAdded();
+        toast.success("Documento agregado correctamente");
       } else {
         console.error("Error creating document:", result.error);
+        toast.error("Error al crear el documento");
       }
     } catch (error) {
       console.error("Error creating document:", error);
+      toast.error("Error inesperado al crear el documento");
     } finally {
       setIsSubmitting(false);
     }
@@ -225,38 +235,43 @@ const AddExtensionCard = ({ contractMemberId, onExtensionAdded }: {
   } | null>(null);
   const [isLoadingDates, setIsLoadingDates] = useState(false);
 
-  // Cargar fechas del contrato al abrir el diálogo
-  useEffect(() => {
-    if (isDialogOpen && contractMemberId) {
-      const loadContractDates = async () => {
-        setIsLoadingDates(true);
-        try {
-          const result = await getContractMemberDates(contractMemberId);
-          if (result.success && result.data) {
-            setContractDates(result.data);
-            // Si hay fecha de fin del contrato, establecer la fecha de inicio como esa
-            if (result.data.endDate) {
-              setStartDate(new Date(result.data.endDate));
-            }
-          } else {
-            setError("No se pudieron cargar las fechas del contrato");
-          }
-        } catch (error) {
-          console.error("Error al cargar fechas del contrato:", error);
-          setError("Error al cargar fechas del contrato");
-        } finally {
-          setIsLoadingDates(false);
+  // Optimización: Memoizar la función de carga de fechas
+  const loadContractDates = useCallback(async () => {
+    if (!contractMemberId) return;
+    
+    setIsLoadingDates(true);
+    try {
+      const result = await getContractMemberDates(contractMemberId);
+      if (result.success && result.data) {
+        setContractDates(result.data);
+        // Si hay fecha de fin del contrato, establecer la fecha de inicio como esa
+        if (result.data.endDate) {
+          setStartDate(new Date(result.data.endDate));
         }
-      };
+      } else {
+        setError("No se pudieron cargar las fechas del contrato");
+      }
+    } catch (error) {
+      console.error("Error al cargar fechas del contrato:", error);
+      setError("Error al cargar fechas del contrato");
+    } finally {
+      setIsLoadingDates(false);
+    }
+  }, [contractMemberId]);
 
+  // Cargar fechas del contrato solo cuando se abre el diálogo
+  useEffect(() => {
+    if (isDialogOpen) {
       loadContractDates();
     }
-  }, [isDialogOpen, contractMemberId]);
+  }, [isDialogOpen, loadContractDates]);
 
-  // Calcular el límite máximo de la fecha de fin (1 año desde start_date del contrato)
-  const maxEndDate = contractDates?.startDate 
-    ? addYears(new Date(contractDates.startDate), 1) 
-    : undefined;
+  // Memoizar el cálculo del límite máximo de fecha
+  const maxEndDate = useMemo(() => {
+    return contractDates?.startDate 
+      ? addYears(new Date(contractDates.startDate), 1) 
+      : undefined;
+  }, [contractDates?.startDate]);
 
   const handleAddExtension = async () => {
     // Validar existencia de fechas
@@ -307,6 +322,7 @@ const AddExtensionCard = ({ contractMemberId, onExtensionAdded }: {
       if (result.success) {
         setIsDialogOpen(false);
         onExtensionAdded();
+        toast.success("Extensión agregada correctamente");
       } else {
         setError(result.error || "Error al crear la extensión");
       }
@@ -318,17 +334,16 @@ const AddExtensionCard = ({ contractMemberId, onExtensionAdded }: {
     }
   };
 
-  // Deshabilitar fechas anteriores a la fecha de fin del contrato para el calendar de inicio
-  const disableStartDate = (date: Date) => {
+  // Memoizar las funciones de validación de fechas
+  const disableStartDate = useCallback((date: Date) => {
     if (!contractDates?.endDate) return false;
     return isBefore(date, contractDates.endDate);
-  };
+  }, [contractDates?.endDate]);
 
-  // Deshabilitar fechas posteriores a 1 año desde start_date para el calendar de fin
-  const disableEndDate = (date: Date) => {
+  const disableEndDate = useCallback((date: Date) => {
     if (!maxEndDate) return false;
     return isAfter(date, maxEndDate);
-  };
+  }, [maxEndDate]);
 
   return (
     <>
@@ -436,11 +451,8 @@ export default function ViewDocumentsModal({
 }: {
   projectDocument: ProjectDocumentGroupedByDueDate;
 }) {
-  // Estado para almacenar todos los documentos contractuales por mes
+  // Estados optimizados con mejor granularidad
   const [allDocumentsByMonth, setAllDocumentsByMonth] = useState<ContractualDocumentsByMonth[]>([]);
-  // Estado para indicar si los documentos contractuales están cargando
-  const [isLoadingContractualDocs, setIsLoadingContractualDocs] = useState(false);
-  // Estado para almacenar documentos precontractuales
   const [precontractualDocs, setPrecontractualDocs] = useState<Array<{
     id: string;
     name: string;
@@ -449,102 +461,142 @@ export default function ViewDocumentsModal({
     url?: string;
     contractualDocumentId: string;
   }>>([]);
-  // Estado para indicar si los documentos precontractuales están cargando
-  const [isLoadingPrecontractualDocs, setIsLoadingPrecontractualDocs] = useState(false);
+  const [extensions, setExtensions] = useState<ContractExtension[]>([]);
+  
+  // Estado de carga unificado
+  const [loading, setLoading] = useState<LoadingState>({
+    precontractual: false,
+    contractual: false,
+    extensions: false
+  });
+  
   // Estado para controlar si el diálogo está abierto
   const [isOpen, setIsOpen] = useState(false);
-  // Estado para forzar refrescos
-  const [refreshKey, setRefreshKey] = useState(0);
-  // Estado para almacenar extensiones de contrato
-  const [extensions, setExtensions] = useState<ContractExtension[]>([]);
-  // Estado para indicar si las extensiones están cargando
-  const [isLoadingExtensions, setIsLoadingExtensions] = useState(false);
+  
+  // Cache simple para evitar recargas innecesarias
+  const [dataLoaded, setDataLoaded] = useState(false);
 
-  // Función para cargar los documentos contractuales cuando se abre el diálogo
-  const loadContractualDocuments = async () => {
+  // Función optimizada para cargar todos los datos en paralelo
+  const loadAllData = useCallback(async () => {
+    if (!projectDocument.contractMemberId || dataLoaded) return;
+    
+    // Iniciar todos los estados de carga
+    setLoading({
+      precontractual: true,
+      contractual: true,
+      extensions: true
+    });
+
+    try {
+      // Ejecutar todas las llamadas en paralelo
+      const [precontractualData, contractualData, extensionsResult] = await Promise.allSettled([
+        getPrecontractualDocuments(projectDocument.contractMemberId),
+        getAllContractualDocuments(projectDocument.contractMemberId),
+        getContractMemberExtensions(projectDocument.contractMemberId)
+      ]);
+
+      // Procesar resultados de precontractuales
+      if (precontractualData.status === 'fulfilled') {
+        setPrecontractualDocs(precontractualData.value);
+      } else {
+        console.error("Error al cargar documentos precontractuales:", precontractualData.reason);
+      }
+
+      // Procesar resultados de contractuales
+      if (contractualData.status === 'fulfilled') {
+        setAllDocumentsByMonth(contractualData.value);
+      } else {
+        console.error("Error al cargar documentos contractuales:", contractualData.reason);
+      }
+
+      // Procesar resultados de extensiones
+      if (extensionsResult.status === 'fulfilled' && extensionsResult.value.success) {
+        setExtensions(extensionsResult.value.extensions);
+      } else {
+        console.error("Error al cargar extensiones:", 
+          extensionsResult.status === 'fulfilled' ? extensionsResult.value.error : extensionsResult.reason);
+      }
+
+      setDataLoaded(true);
+    } finally {
+      // Finalizar todos los estados de carga
+      setLoading({
+        precontractual: false,
+        contractual: false,
+        extensions: false
+      });
+    }
+  }, [projectDocument.contractMemberId, dataLoaded]);
+
+  // Función para refrescar solo documentos contractuales
+  const refreshContractualDocuments = useCallback(async () => {
     if (!projectDocument.contractMemberId) return;
     
-    setIsLoadingContractualDocs(true);
+    setLoading(prev => ({ ...prev, contractual: true }));
     try {
-      // Cargar todos los documentos en una sola llamada para mejorar rendimiento
       const data = await getAllContractualDocuments(projectDocument.contractMemberId);
       setAllDocumentsByMonth(data);
     } catch (error) {
-      console.error("Error al cargar documentos contractuales:", error);
+      console.error("Error al refrescar documentos contractuales:", error);
     } finally {
-      setIsLoadingContractualDocs(false);
+      setLoading(prev => ({ ...prev, contractual: false }));
     }
-  };
+  }, [projectDocument.contractMemberId]);
 
-  // Función para cargar extensiones de contrato
-  const loadExtensions = async () => {
+  // Función para refrescar solo extensiones
+  const refreshExtensions = useCallback(async () => {
     if (!projectDocument.contractMemberId) return;
     
-    setIsLoadingExtensions(true);
+    setLoading(prev => ({ ...prev, extensions: true }));
     try {
       const result = await getContractMemberExtensions(projectDocument.contractMemberId);
       if (result.success) {
         setExtensions(result.extensions);
-      } else {
-        console.error("Error al cargar extensiones:", result.error);
       }
     } catch (error) {
-      console.error("Error al cargar extensiones:", error);
+      console.error("Error al refrescar extensiones:", error);
     } finally {
-      setIsLoadingExtensions(false);
+      setLoading(prev => ({ ...prev, extensions: false }));
     }
-  };
+  }, [projectDocument.contractMemberId]);
 
-  // Handler para cuando se agrega un nuevo documento
-  const handleDocumentAdded = () => {
-    setRefreshKey(prev => prev + 1);
-  };
-
-  // Handler para cuando se agrega una nueva extensión
-  const handleExtensionAdded = () => {
-    // Actualizar la clave de refresco para forzar la recarga de datos
-    setRefreshKey(prev => prev + 1);
-    
-    // También se podría mostrar un mensaje de toast o notificación
-    toast.success("Extensión agregada correctamente");
-  };
-
-  // Cargar los documentos cuando se abre el diálogo o se actualiza el refreshKey
+  // Efecto optimizado - solo se ejecuta cuando se abre el modal por primera vez
   useEffect(() => {
-    if (isOpen) {
-      loadPrecontractualDocuments();
-      loadContractualDocuments();
-      loadExtensions();
+    if (isOpen && !dataLoaded) {
+      loadAllData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, projectDocument.contractMemberId, refreshKey]);
+  }, [isOpen, loadAllData, dataLoaded]);
 
-  // Función para cargar los documentos precontractuales cuando se abre el diálogo
-  const loadPrecontractualDocuments = async () => {
-    if (!projectDocument.contractMemberId) return;
-    
-    setIsLoadingPrecontractualDocs(true);
-    try {
-      const data = await getPrecontractualDocuments(projectDocument.contractMemberId);
-      setPrecontractualDocs(data);
-    } catch (error) {
-      console.error("Error al cargar documentos precontractuales:", error);
-    } finally {
-      setIsLoadingPrecontractualDocs(false);
-    }
-  };
+  // Reset cache cuando cambia el contractMemberId
+  useEffect(() => {
+    setDataLoaded(false);
+  }, [projectDocument.contractMemberId]);
 
-  // Only use months that have documents, not empty ones
-  const allMonths = Array.from(new Set([
-    ...allDocumentsByMonth.map(group => group.month)
-  ])).sort((a, b) => {
-    const monthOrder: Record<string, number> = {
-      'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6,
-      'julio': 7, 'agosto': 8, 'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12,
-      'Sin mes asignado': 13
-    };
-    return (monthOrder[a.toLowerCase()] || 99) - (monthOrder[b.toLowerCase()] || 99);
-  });
+  // Handlers optimizados con refrescos granulares
+  const handleDocumentAdded = useCallback(() => {
+    refreshContractualDocuments();
+  }, [refreshContractualDocuments]);
+
+  const handleExtensionAdded = useCallback(() => {
+    refreshExtensions();
+  }, [refreshExtensions]);
+
+  // Memoizar el cálculo de meses para evitar re-renderizados innecesarios
+  const allMonths = useMemo(() => {
+    return Array.from(new Set([
+      ...allDocumentsByMonth.map(group => group.month)
+    ])).sort((a, b) => {
+      const monthOrder: Record<string, number> = {
+        'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6,
+        'julio': 7, 'agosto': 8, 'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12,
+        'Sin mes asignado': 13
+      };
+      return (monthOrder[a.toLowerCase()] || 99) - (monthOrder[b.toLowerCase()] || 99);
+    });
+  }, [allDocumentsByMonth]);
+
+  // Calcular si hay algún estado de carga activo
+  const isAnyLoading = loading.precontractual || loading.contractual || loading.extensions;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -554,10 +606,6 @@ export default function ViewDocumentsModal({
         </Button>
       </DialogTrigger>
       <DialogContent
-        /** 
-         * Make the modal wider and taller, and enable scrolling 
-         * (both vertical & horizontal if needed).
-         */
         className="w-[50vw] sm:max-w-none max-h-[85vh] overflow-y-auto"
       >
         <AlertDialogHeader>
@@ -567,12 +615,15 @@ export default function ViewDocumentsModal({
           </DialogDescription>
         </AlertDialogHeader>
 
-        {/* --- PRECONTRACTUAL DOCUMENTS --- */}
-        {isLoadingPrecontractualDocs ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Cargando documentos precontractuales...</p>
+        {/* Loading indicator unificado */}
+        {isAnyLoading && (
+          <div className="text-center py-4">
+            <p className="text-gray-500">Cargando datos...</p>
           </div>
-        ) : precontractualDocs.length > 0 ? (
+        )}
+
+        {/* --- PRECONTRACTUAL DOCUMENTS --- */}
+        {loading.precontractual ? null : precontractualDocs.length > 0 ? (
           <section className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
               Documentos Precontractuales
@@ -594,11 +645,7 @@ export default function ViewDocumentsModal({
         ) : null}
 
         {/* --- CONTRACTUAL DOCUMENTS GROUPED BY MONTH --- */}
-        {isLoadingContractualDocs ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Cargando documentos contractuales...</p>
-          </div>
-        ) : (
+        {!loading.contractual && (
           <section>
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
               Documentos Contractuales
@@ -654,31 +701,25 @@ export default function ViewDocumentsModal({
         )}
 
         {/* --- CONTRACT EXTENSIONS SECTION --- */}
-        {projectDocument.contractMemberId && (
+        {projectDocument.contractMemberId && !loading.extensions && (
           <section className="mt-8">
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
               Extensiones de Contrato
             </h2>
             <Separator className="mb-4" />
             
-            {isLoadingExtensions ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">Cargando extensiones...</p>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* List all extensions */}
-                {extensions.map((extension) => (
-                  <ExtensionCard key={extension.id} extension={extension} />
-                ))}
-                
-                {/* Add extension card */}
-                <AddExtensionCard 
-                  contractMemberId={projectDocument.contractMemberId}
-                  onExtensionAdded={handleExtensionAdded}
-                />
-              </div>
-            )}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {/* List all extensions */}
+              {extensions.map((extension) => (
+                <ExtensionCard key={extension.id} extension={extension} />
+              ))}
+              
+              {/* Add extension card */}
+              <AddExtensionCard 
+                contractMemberId={projectDocument.contractMemberId}
+                onExtensionAdded={handleExtensionAdded}
+              />
+            </div>
           </section>
         )}
       </DialogContent>

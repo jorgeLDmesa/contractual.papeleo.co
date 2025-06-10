@@ -84,7 +84,6 @@ export async function processContractDocument(
       return false;
     }
     
-    console.log('User document_id:', user?.document_id);
     
     // Process the sections
     let sections = document.sections;
@@ -158,7 +157,6 @@ export async function processContractDocument(
       };
     }
     
-    console.log('firmasContent', sections["2. FIRMAS"].content);
     // Process signatures section if project ID is provided
     if (projectId && sections["2. FIRMAS"]) {
       // Fetch project signature from contractual_projects table
