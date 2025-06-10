@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import DocumentCard from "./DocumentCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState, useRef } from "react";
-import { ContractualDocumentsByMonth, getAllContractualDocuments, createContractualExtraDocument } from "./actionServer";
+import { ContractualDocumentsByMonth, getAllContractualDocuments, createContractualExtraDocument, getPrecontractualDocuments } from "./actionServer";
 import { PlusCircle, CalendarIcon } from "lucide-react";
 import { 
   AlertDialog, 
@@ -48,6 +48,10 @@ export type ProjectDocumentGroupedByDueDate = {
     status?: boolean;
     novedades?: string[];
     code?: string;
+  } | null;
+  statusSeguridadSocial?: {
+    status?: boolean;
+    novedades?: string[];
   } | null;
   ending?: {
     url: string;
@@ -336,7 +340,7 @@ const AddExtensionCard = ({ contractMemberId, onExtensionAdded }: {
       </Card>
 
       <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <AlertDialogContent className="max-w-3xl">
+        <AlertDialogContent className="w-[50vw] sm:max-w-none max-h-[85vh] overflow-y-auto">
           <AlertDialogTitle>Agregar extensión de contrato</AlertDialogTitle>
           
           {isLoadingDates ? (
@@ -344,7 +348,7 @@ const AddExtensionCard = ({ contractMemberId, onExtensionAdded }: {
               <p className="text-gray-500">Cargando datos del contrato...</p>
             </div>
           ) : (
-            <div className="py-4 space-y-4">
+            <div className="space-y-6">
               {contractDates?.endDate && (
                 <div className="text-sm bg-blue-50 p-3 rounded-md border border-blue-200">
                   <p>
@@ -358,17 +362,11 @@ const AddExtensionCard = ({ contractMemberId, onExtensionAdded }: {
                 </div>
               )}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha de inicio de extensión
-                  </label>
-                  <div className="border rounded-md p-2">
-                    {startDate && (
-                      <p className="text-sm font-medium mb-2">
-                        {format(startDate, "dd MMMM, yyyy", { locale: es })}
-                      </p>
-                    )}
+              <div className="grid gap-2">
+                <label className="block text-sm font-medium text-gray-700">Fechas de extensión</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Fecha de Inicio</p>
                     <Calendar
                       mode="single"
                       selected={startDate}
@@ -379,18 +377,8 @@ const AddExtensionCard = ({ contractMemberId, onExtensionAdded }: {
                       fromDate={contractDates?.endDate || undefined}
                     />
                   </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha de fin de extensión
-                  </label>
-                  <div className="border rounded-md p-2">
-                    {endDate && (
-                      <p className="text-sm font-medium mb-2">
-                        {format(endDate, "dd MMMM, yyyy", { locale: es })}
-                      </p>
-                    )}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Fecha de Fin</p>
                     <Calendar
                       mode="single"
                       selected={endDate}
@@ -404,20 +392,18 @@ const AddExtensionCard = ({ contractMemberId, onExtensionAdded }: {
                 </div>
               </div>
               
-              <div>
-                <label htmlFor="extensionDocument" className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="grid gap-2">
+                <label htmlFor="extensionDocument" className="block text-sm font-medium text-gray-700">
                   Documento de extensión
                 </label>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    id="extensionDocument"
-                    type="file"
-                    ref={fileInputRef}
-                    accept=".pdf,.doc,.docx"
-                    className="w-full"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <Input
+                  id="extensionDocument"
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".pdf,.doc,.docx"
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500">
                   Formatos aceptados: PDF, DOC, DOCX
                 </p>
               </div>
@@ -454,6 +440,17 @@ export default function ViewDocumentsModal({
   const [allDocumentsByMonth, setAllDocumentsByMonth] = useState<ContractualDocumentsByMonth[]>([]);
   // Estado para indicar si los documentos contractuales están cargando
   const [isLoadingContractualDocs, setIsLoadingContractualDocs] = useState(false);
+  // Estado para almacenar documentos precontractuales
+  const [precontractualDocs, setPrecontractualDocs] = useState<Array<{
+    id: string;
+    name: string;
+    type: string;
+    required_document_id: string;
+    url?: string;
+    contractualDocumentId: string;
+  }>>([]);
+  // Estado para indicar si los documentos precontractuales están cargando
+  const [isLoadingPrecontractualDocs, setIsLoadingPrecontractualDocs] = useState(false);
   // Estado para controlar si el diálogo está abierto
   const [isOpen, setIsOpen] = useState(false);
   // Estado para forzar refrescos
@@ -515,17 +512,27 @@ export default function ViewDocumentsModal({
   // Cargar los documentos cuando se abre el diálogo o se actualiza el refreshKey
   useEffect(() => {
     if (isOpen) {
+      loadPrecontractualDocuments();
       loadContractualDocuments();
       loadExtensions();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, projectDocument.contractMemberId, refreshKey]);
 
-  /**
-   * DOCUMENTOS PRECONTRACTUALES - mantenerlos igual
-   */
-  const precontractualDocs = projectDocument.requiredDocuments
-    .flatMap((group) => group.docs?.filter((doc) => doc.type === "precontractual") || []);
+  // Función para cargar los documentos precontractuales cuando se abre el diálogo
+  const loadPrecontractualDocuments = async () => {
+    if (!projectDocument.contractMemberId) return;
+    
+    setIsLoadingPrecontractualDocs(true);
+    try {
+      const data = await getPrecontractualDocuments(projectDocument.contractMemberId);
+      setPrecontractualDocs(data);
+    } catch (error) {
+      console.error("Error al cargar documentos precontractuales:", error);
+    } finally {
+      setIsLoadingPrecontractualDocs(false);
+    }
+  };
 
   // Only use months that have documents, not empty ones
   const allMonths = Array.from(new Set([
@@ -561,7 +568,11 @@ export default function ViewDocumentsModal({
         </AlertDialogHeader>
 
         {/* --- PRECONTRACTUAL DOCUMENTS --- */}
-        {precontractualDocs.length > 0 && (
+        {isLoadingPrecontractualDocs ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Cargando documentos precontractuales...</p>
+          </div>
+        ) : precontractualDocs.length > 0 ? (
           <section className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
               Documentos Precontractuales
@@ -569,11 +580,18 @@ export default function ViewDocumentsModal({
             <Separator className="mb-4" />
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {precontractualDocs.map((doc) => (
-                <DocumentCard key={doc.id} requiredDocument={doc} />
+                <DocumentCard key={doc.contractualDocumentId} requiredDocument={{
+                  id: doc.id,
+                  name: doc.name,
+                  type: doc.type,
+                  dueDate: "", // No es relevante para precontractuales
+                  contractualDocumentId: doc.contractualDocumentId,
+                  url: doc.url
+                }} />
               ))}
             </div>
           </section>
-        )}
+        ) : null}
 
         {/* --- CONTRACTUAL DOCUMENTS GROUPED BY MONTH --- */}
         {isLoadingContractualDocs ? (

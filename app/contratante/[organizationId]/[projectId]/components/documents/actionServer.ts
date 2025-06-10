@@ -363,6 +363,116 @@ export async function getAllContractualDocuments(contractMemberId: string): Prom
   }
 }
 
+/**
+ * Obtiene los documentos precontractuales (aquellos con month null)
+ * @param contractMemberId ID del miembro del contrato
+ * @returns Array de documentos precontractuales
+ */
+export async function getPrecontractualDocuments(contractMemberId: string): Promise<{
+  id: string;
+  name: string;
+  type: string;
+  required_document_id: string;
+  url?: string;
+  contractualDocumentId: string;
+}[]> {
+  try {
+    const supabase = await createClient();
+    
+    // Paso 1: Obtener todos los documentos requeridos de tipo "precontractual" para este contrato
+    const { data: contractData, error: contractError } = await supabase
+      .from("contract_members")
+      .select(`
+        contracts(
+          required_documents(
+            id,
+            name,
+            type
+          )
+        )
+      `)
+      .eq("id", contractMemberId)
+      .single();
+    
+    if (contractError) {
+      console.error("Error al obtener documentos requeridos:", contractError);
+      return [];
+    }
+    
+    // Verificar la estructura de los datos y extraer los documentos requeridos
+    if (!contractData || !contractData.contracts) {
+      console.error("No se encontraron contratos");
+      return [];
+    }
+    
+    // Extraer los documentos requeridos
+    let requiredDocs: RequiredDocument[] = [];
+    
+    // Contratos puede ser un array o un objeto
+    const contracts = Array.isArray(contractData.contracts)
+      ? contractData.contracts
+      : [contractData.contracts];
+    
+    // Para cada contrato, extraer los documentos requeridos
+    for (const contract of contracts) {
+      if (contract && contract.required_documents) {
+        const docs = Array.isArray(contract.required_documents)
+          ? contract.required_documents
+          : [contract.required_documents];
+        
+        requiredDocs = [...requiredDocs, ...docs];
+      }
+    }
+    
+    // Filtrar solo documentos precontractuales
+    const precontractualRequiredDocs = requiredDocs.filter(doc => doc.type === "precontractual");
+    
+    if (precontractualRequiredDocs.length === 0) {
+      return [];
+    }
+    
+    // Paso 2: Para cada documento requerido precontractual, obtener los documentos contractuales con month null
+    const requiredDocsMap = new Map<string, string>();
+    precontractualRequiredDocs.forEach(doc => {
+      requiredDocsMap.set(doc.id, doc.name);
+    });
+    
+    // Obtener todos los documentos contractuales con month null para este miembro
+    const { data: contractualDocs, error: contractualError } = await supabase
+      .from("contractual_documents")
+      .select("id, required_document_id, url, month")
+      .eq("contract_member_id", contractMemberId)
+      .is("month", null)
+      .is("deleted_at", null);
+    
+    if (contractualError) {
+      console.error("Error al obtener documentos precontractuales:", contractualError);
+      return [];
+    }
+    
+    if (!contractualDocs || contractualDocs.length === 0) {
+      return [];
+    }
+    
+    // Paso 3: Crear el array de documentos precontractuales
+    const precontractualDocuments = contractualDocs
+      .filter((doc: ContractualDocument) => requiredDocsMap.has(doc.required_document_id))
+      .map((doc: ContractualDocument) => ({
+        id: doc.required_document_id,
+        name: requiredDocsMap.get(doc.required_document_id) || "Documento sin nombre",
+        type: "precontractual",
+        required_document_id: doc.required_document_id,
+        url: doc.url,
+        contractualDocumentId: doc.id
+      }));
+    
+    return precontractualDocuments;
+  } catch (error) {
+    console.error('Error fetching precontractual documents:', error);
+    return [];
+  }
+}
+
 // ========================================
 // LEGAL STATUS FUNCTIONS
 // ========================================

@@ -115,6 +115,55 @@ const LegalStatusBadgeDisplay: React.FC<LegalStatusBadgeDisplayProps> = ({ proje
   return <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">Pendiente</Badge>;
 };
 
+// New component for social security status badge
+interface SocialSecurityStatusBadgeDisplayProps {
+  projectDocument: ProjectDocumentGroupedByDueDate;
+}
+
+const SocialSecurityStatusBadgeDisplay: React.FC<SocialSecurityStatusBadgeDisplayProps> = ({ projectDocument }) => {
+  const status = projectDocument.statusSeguridadSocial;
+  
+  if (!status) {
+    return <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">Pendiente</Badge>;
+  }
+  
+  if (status.status === true) {
+    const novedades = status.novedades || [];
+    
+    if (novedades.length > 0) {
+      return (
+        <TooltipProvider>
+          <Tooltip delayDuration={50}>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Badge variant="destructive" className="cursor-help">Rechazado</Badge>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white p-2 border border-gray-200 shadow-md rounded-md">
+              <div className="p-1 max-w-sm">
+                <h4 className="font-semibold mb-1 text-red-700">Novedades:</h4>
+                <ul className="text-sm list-disc pl-5">
+                  {novedades.map((novedad: string, index: number) => (
+                    <li key={index} className="text-gray-800">{novedad}</li>
+                  ))}
+                </ul>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    
+    return <Badge variant="destructive">Rechazado</Badge>;
+  }
+  
+  if (status.status === false) {
+    return <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">Aprobado</Badge>;
+  }
+  
+  return <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">Pendiente</Badge>;
+};
+
 // New component for the document status badge
 interface DocumentStatusBadgeProps {
   projectDocument: ProjectDocumentGroupedByDueDate;
@@ -432,6 +481,7 @@ export default function DocumentsTable({ projectDocuments, searchTerm }: Documen
                   <TableHead>Contrato</TableHead>
                   <TableHead>Estado de Documentos</TableHead>
                   <TableHead>Estado Jurídico</TableHead>
+                  <TableHead>Estado de Seguridad Social</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -445,6 +495,9 @@ export default function DocumentsTable({ projectDocuments, searchTerm }: Documen
                     </TableCell>
                     <TableCell>
                       <LegalStatusBadgeDisplay projectDocument={projectDocument} />
+                    </TableCell>
+                    <TableCell>
+                      <SocialSecurityStatusBadgeDisplay projectDocument={projectDocument} />
                     </TableCell>
                     <TableCell>
                       <ViewDocumentsModal projectDocument={projectDocument} />
