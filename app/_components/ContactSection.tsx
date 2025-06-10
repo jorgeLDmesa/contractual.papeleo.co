@@ -31,10 +31,10 @@ export default function ContactSection() {
             <div className="bg-blue-50 p-4 rounded-lg">
               <h3 className="font-semibold text-blue-800 mb-2">¿Por qué elegir contractual.papeleo.co?</h3>
               <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Prueba gratuita de 14 días</li>
+                <li>• Prueba gratuita de 10 contratos</li>
                 <li>• Implementación en menos de 24 horas</li>
                 <li>• Soporte especializado incluido</li>
-                <li>• ROI visible desde el primer mes</li>
+                <li>• ROI visible desde el primer mes de uso</li>
               </ul>
             </div>
           </div>
