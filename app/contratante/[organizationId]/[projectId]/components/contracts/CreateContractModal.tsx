@@ -1,7 +1,7 @@
 // CreateContractModal.tsx
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Loader2, Plus, Trash2, Brain } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,8 +37,8 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false)
   
   type DocumentOption = string | { name: string; template?: number };
+  
   // Estado principal del contrato
-// Actualiza el estado usando el nuevo tipo:
   const [newContract, setNewContract] = useState<{
     name: string;
     preContractualDocs: DocumentOption[];
@@ -53,6 +53,10 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
   const [newPreContractualDoc, setNewPreContractualDoc] = useState('')
   const [newContractualDoc, setNewContractualDoc] = useState('')
 
+  // Estados para el foco de los inputs
+  const [isPreContractualInputFocused, setIsPreContractualInputFocused] = useState(false)
+  const [isContractualInputFocused, setIsContractualInputFocused] = useState(false)
+
   // Estado para sugerencias de documentos
   const [preContractualSuggestions, setPreContractualSuggestions] = useState<DocumentSuggestion[]>([])
   const [contractualSuggestions, setContractualSuggestions] = useState<DocumentSuggestion[]>([])
@@ -62,6 +66,8 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
   // Referencias para los contenedores de sugerencias
   const preContractualSuggestionsRef = useRef<HTMLDivElement>(null)
   const contractualSuggestionsRef = useRef<HTMLDivElement>(null)
+  const preContractualInputRef = useRef<HTMLInputElement>(null)
+  const contractualInputRef = useRef<HTMLInputElement>(null)
 
   // Estado para archivo (opción "Subir Archivo")
   const [draftFile, setDraftFile] = useState<File | null>(null)
@@ -72,97 +78,158 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
   const [draftOption, setDraftOption] = useState<"file" | "ai">("file")
   const [objetoContractual, setObjetoContractual] = useState<string>("")
 
-  const openCreateModal = () => setIsOpen(true)
-  const closeCreateModal = () => {
-    if (isGeneratingWithAI) return // No permitir cerrar mientras se genera con IA
-    setIsOpen(false)
-    // Reset form
+  // Función para limpiar estados
+  const resetStates = useCallback(() => {
     setNewContract({
       name: '',
       preContractualDocs: [],
       contractualDocs: [],
     })
+    setNewPreContractualDoc('')
+    setNewContractualDoc('')
+    setPreContractualSuggestions([])
+    setContractualSuggestions([])
+    setIsLoadingPreSuggestions(false)
+    setIsLoadingContractualSuggestions(false)
+    setIsPreContractualInputFocused(false)
+    setIsContractualInputFocused(false)
     setDraftFile(null)
     setFileError(null)
     setObjetoContractual("")
+    setDraftOption("file")
+  }, [])
+
+  const openCreateModal = () => setIsOpen(true)
+  const closeCreateModal = () => {
+    if (isGeneratingWithAI) return // No permitir cerrar mientras se genera con IA
+    setIsOpen(false)
+    resetStates()
   }
 
-  // Función para cargar sugerencias de documentos precontractuales
-  const fetchPreContractualSuggestions = debounce(async (search: string) => {
-    if (search.length < 2) {
-      setPreContractualSuggestions([]);
-      return;
-    }
-    
-    setIsLoadingPreSuggestions(true);
-    try {
-      console.log("Solicitando sugerencias precontractuales para:", search);
-      const suggestions = await getDocumentSuggestions(search, 'precontractual');
-      console.log("Sugerencias precontractuales recibidas:", suggestions);
-      setPreContractualSuggestions(suggestions);
-    } catch (error) {
-      console.error("Error al obtener sugerencias precontractuales:", error);
-      // Mostrar un mensaje amigable al usuario (opcional)
-      toast.warning("No se pudieron cargar sugerencias. Por favor, continúe escribiendo manualmente.");
-    } finally {
-      setIsLoadingPreSuggestions(false);
-    }
-  }, 300);
+  // Funciones debounced memoizadas
+  const fetchPreContractualSuggestions = useMemo(
+    () => debounce(async (search: string) => {
+      if (search.length < 2 || !isPreContractualInputFocused) {
+        setPreContractualSuggestions([]);
+        setIsLoadingPreSuggestions(false);
+        return;
+      }
+      
+      setIsLoadingPreSuggestions(true);
+      try {
+        console.log("Solicitando sugerencias precontractuales para:", search);
+        const suggestions = await getDocumentSuggestions(search, 'precontractual');
+        console.log("Sugerencias precontractuales recibidas:", suggestions);
+        
+        // Solo actualizar si el input sigue enfocado
+        if (isPreContractualInputFocused) {
+          setPreContractualSuggestions(suggestions);
+        }
+      } catch (error) {
+        console.error("Error al obtener sugerencias precontractuales:", error);
+        if (isPreContractualInputFocused) {
+          toast.warning("No se pudieron cargar sugerencias. Por favor, continúe escribiendo manualmente.");
+        }
+      } finally {
+        setIsLoadingPreSuggestions(false);
+      }
+    }, 500), // Aumenté el debounce a 500ms
+    [isPreContractualInputFocused]
+  );
 
-  // Función para cargar sugerencias de documentos contractuales
-  const fetchContractualSuggestions = debounce(async (search: string) => {
-    if (search.length < 2) {
-      setContractualSuggestions([]);
-      return;
-    }
-    
-    setIsLoadingContractualSuggestions(true);
-    try {
-      console.log("Solicitando sugerencias contractuales para:", search);
-      const suggestions = await getDocumentSuggestions(search, 'contractual');
-      console.log("Sugerencias contractuales recibidas:", suggestions);
-      setContractualSuggestions(suggestions);
-    } catch (error) {
-      console.error("Error al obtener sugerencias contractuales:", error);
-      // Mostrar un mensaje amigable al usuario (opcional)
-      toast.warning("No se pudieron cargar sugerencias. Por favor, continúe escribiendo manualmente.");
-    } finally {
-      setIsLoadingContractualSuggestions(false);
-    }
-  }, 300);
+  const fetchContractualSuggestions = useMemo(
+    () => debounce(async (search: string) => {
+      if (search.length < 2 || !isContractualInputFocused) {
+        setContractualSuggestions([]);
+        setIsLoadingContractualSuggestions(false);
+        return;
+      }
+      
+      setIsLoadingContractualSuggestions(true);
+      try {
+        console.log("Solicitando sugerencias contractuales para:", search);
+        const suggestions = await getDocumentSuggestions(search, 'contractual');
+        console.log("Sugerencias contractuales recibidas:", suggestions);
+        
+        // Solo actualizar si el input sigue enfocado
+        if (isContractualInputFocused) {
+          setContractualSuggestions(suggestions);
+        }
+      } catch (error) {
+        console.error("Error al obtener sugerencias contractuales:", error);
+        if (isContractualInputFocused) {
+          toast.warning("No se pudieron cargar sugerencias. Por favor, continúe escribiendo manualmente.");
+        }
+      } finally {
+        setIsLoadingContractualSuggestions(false);
+      }
+    }, 500), // Aumenté el debounce a 500ms
+    [isContractualInputFocused]
+  );
+
+  // Cleanup de las funciones debounced
+  useEffect(() => {
+    return () => {
+      fetchPreContractualSuggestions.cancel();
+      fetchContractualSuggestions.cancel();
+    };
+  }, [fetchPreContractualSuggestions, fetchContractualSuggestions]);
 
   // Event listener para cerrar las sugerencias al hacer clic fuera de ellas
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      
+      // Manejar sugerencias precontractuales
       if (
         preContractualSuggestionsRef.current && 
-        !preContractualSuggestionsRef.current.contains(event.target as Node)
+        !preContractualSuggestionsRef.current.contains(target) &&
+        preContractualInputRef.current &&
+        !preContractualInputRef.current.contains(target)
       ) {
         setPreContractualSuggestions([]);
+        setIsPreContractualInputFocused(false);
       }
       
+      // Manejar sugerencias contractuales
       if (
         contractualSuggestionsRef.current && 
-        !contractualSuggestionsRef.current.contains(event.target as Node)
+        !contractualSuggestionsRef.current.contains(target) &&
+        contractualInputRef.current &&
+        !contractualInputRef.current.contains(target)
       ) {
         setContractualSuggestions([]);
+        setIsContractualInputFocused(false);
       }
     }
     
-    document.addEventListener("mousedown", handleClickOutside);
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [isOpen]);
 
-  // Actualizar sugerencias al escribir en los inputs
+  // Solo buscar sugerencias cuando el input está enfocado y tiene contenido
   useEffect(() => {
-    fetchPreContractualSuggestions(newPreContractualDoc);
-  }, [newPreContractualDoc, fetchPreContractualSuggestions]);
+    if (isPreContractualInputFocused && newPreContractualDoc.length >= 2) {
+      fetchPreContractualSuggestions(newPreContractualDoc);
+    } else if (!isPreContractualInputFocused) {
+      setPreContractualSuggestions([]);
+      setIsLoadingPreSuggestions(false);
+    }
+  }, [newPreContractualDoc, isPreContractualInputFocused, fetchPreContractualSuggestions]);
 
   useEffect(() => {
-    fetchContractualSuggestions(newContractualDoc);
-  }, [newContractualDoc, fetchContractualSuggestions]);
+    if (isContractualInputFocused && newContractualDoc.length >= 2) {
+      fetchContractualSuggestions(newContractualDoc);
+    } else if (!isContractualInputFocused) {
+      setContractualSuggestions([]);
+      setIsLoadingContractualSuggestions(false);
+    }
+  }, [newContractualDoc, isContractualInputFocused, fetchContractualSuggestions]);
 
   const handleSubmit = async () => {
     // Validación básica
@@ -314,17 +381,7 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
       }
 
       // Resetear estados
-      setNewContract({
-        name: '',
-        preContractualDocs: [],
-        contractualDocs: [],
-      })
-      setDraftFile(null)
-      setFileError(null)
-      setObjetoContractual("")
-      setDraftOption("file")
-      setPreContractualSuggestions([])
-      setContractualSuggestions([])
+      resetStates()
 
       // Cerrar modal
       setIsOpen(false)
@@ -373,6 +430,7 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
       }))
       setNewPreContractualDoc('')
       setPreContractualSuggestions([])
+      setIsPreContractualInputFocused(false)
     }
   }
 
@@ -384,6 +442,7 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
       }))
       setNewContractualDoc('')
       setContractualSuggestions([])
+      setIsContractualInputFocused(false)
     }
   }
 
@@ -391,13 +450,33 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
   const handleSelectPreContractualSuggestion = (suggestion: string) => {
     setNewPreContractualDoc(suggestion)
     setPreContractualSuggestions([])
+    setIsPreContractualInputFocused(false)
   }
 
   // Handler para seleccionar una sugerencia contractual
   const handleSelectContractualSuggestion = (suggestion: string) => {
     setNewContractualDoc(suggestion)
     setContractualSuggestions([])
+    setIsContractualInputFocused(false)
   }
+
+  // Handlers para el foco de inputs
+  const handlePreContractualInputFocus = () => {
+    setIsPreContractualInputFocused(true)
+  }
+
+  const handleContractualInputFocus = () => {
+    setIsContractualInputFocused(true)
+  }
+
+  // Mostrar sugerencias solo si hay contenido, el input está enfocado y hay sugerencias
+  const shouldShowPreContractualSuggestions = isPreContractualInputFocused && 
+    (preContractualSuggestions.length > 0 || isLoadingPreSuggestions) && 
+    newPreContractualDoc.length >= 2
+
+  const shouldShowContractualSuggestions = isContractualInputFocused && 
+    (contractualSuggestions.length > 0 || isLoadingContractualSuggestions) && 
+    newContractualDoc.length >= 2
 
   return (
     <>
@@ -492,14 +571,16 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
               <div className="col-span-3 space-y-2">
                 <div className="flex gap-2 relative">
                   <Input
+                    ref={preContractualInputRef}
                     value={newPreContractualDoc}
                     onChange={(e) => setNewPreContractualDoc(e.target.value)}
+                    onFocus={handlePreContractualInputFocus}
                     placeholder="Nombre del documento"
                   />
                   <Button onClick={handleAddPreContractualDoc}>Agregar</Button>
                   
                   {/* Dropdown de sugerencias para documentos precontractuales */}
-                  {preContractualSuggestions.length > 0 ? (
+                  {shouldShowPreContractualSuggestions && (
                     <div 
                       ref={preContractualSuggestionsRef}
                       className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto"
@@ -510,7 +591,7 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
                           <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                           <span className="text-sm">Cargando sugerencias...</span>
                         </div>
-                      ) : (
+                      ) : preContractualSuggestions.length > 0 ? (
                         <ul>
                           {preContractualSuggestions.map((suggestion, index) => (
                             <li
@@ -522,20 +603,8 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
                             </li>
                           ))}
                         </ul>
-                      )}
+                      ) : null}
                     </div>
-                  ) : (
-                    isLoadingPreSuggestions && (
-                      <div 
-                        className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border rounded-md shadow-lg p-2"
-                        style={{ width: 'calc(100% - 80px)' }}
-                      >
-                        <div className="text-center text-gray-500">
-                          <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                          <span className="text-sm">Buscando sugerencias...</span>
-                        </div>
-                      </div>
-                    )
                   )}
                 </div>
                 <ul className="list-disc pl-5">
@@ -557,14 +626,16 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
               <div className="col-span-3 space-y-2">
                 <div className="flex gap-2 relative">
                   <Input
+                    ref={contractualInputRef}
                     value={newContractualDoc}
                     onChange={(e) => setNewContractualDoc(e.target.value)}
+                    onFocus={handleContractualInputFocus}
                     placeholder="Nombre del documento"
                   />
                   <Button onClick={handleAddContractualDoc}>Agregar</Button>
                   
                   {/* Dropdown de sugerencias para documentos contractuales */}
-                  {contractualSuggestions.length > 0 ? (
+                  {shouldShowContractualSuggestions && (
                     <div 
                       ref={contractualSuggestionsRef}
                       className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto"
@@ -575,7 +646,7 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
                           <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                           <span className="text-sm">Cargando sugerencias...</span>
                         </div>
-                      ) : (
+                      ) : contractualSuggestions.length > 0 ? (
                         <ul>
                           {contractualSuggestions.map((suggestion, index) => (
                             <li
@@ -587,20 +658,8 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
                             </li>
                           ))}
                         </ul>
-                      )}
+                      ) : null}
                     </div>
-                  ) : (
-                    isLoadingContractualSuggestions && (
-                      <div 
-                        className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border rounded-md shadow-lg p-2"
-                        style={{ width: 'calc(100% - 80px)' }}
-                      >
-                        <div className="text-center text-gray-500">
-                          <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                          <span className="text-sm">Buscando sugerencias...</span>
-                        </div>
-                      </div>
-                    )
                   )}
                 </div>
                 <ul className="list-disc pl-5">
