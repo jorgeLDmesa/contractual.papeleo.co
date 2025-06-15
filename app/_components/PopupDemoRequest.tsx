@@ -33,7 +33,7 @@ export default function PopupDemoRequest() {
       await sendContactEmail(formData)
       setSent(true)
       setTimeout(() => setShow(false), 2000)
-    } catch (err) {
+    } catch {
       setError('Error al enviar el mensaje. Intenta de nuevo.')
     } finally {
       setIsSubmitting(false)
