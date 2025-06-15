@@ -1,3 +1,4 @@
+import { useRef, useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { TestimonialCard, TestimonialAuthor } from "@/components/ui/testimonial-card"
 
@@ -18,6 +19,15 @@ export function TestimonialsSection({
   testimonials,
   className 
 }: TestimonialsSectionProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [trackWidth, setTrackWidth] = useState(0)
+
+  useEffect(() => {
+    if (!trackRef.current) return
+    setTrackWidth(trackRef.current.scrollWidth / 2) // solo el ancho de un set de testimonios
+  }, [testimonials.length])
+
   return (
     <section className={cn(
       "bg-background text-foreground",
@@ -34,16 +44,19 @@ export function TestimonialsSection({
           </p>
         </div>
 
-        <div className="relative flex w-full flex-col items-center justify-center overflow-hidden">
-          <div className="group flex overflow-hidden p-2 [--gap:1rem] [gap:var(--gap)] flex-row [--duration:40s]">
-            <div className="flex shrink-0 justify-around [gap:var(--gap)] animate-marquee flex-row group-hover:[animation-play-state:paused]">
-              {[...Array(4)].map((_, setIndex) => (
-                testimonials.map((testimonial, i) => (
-                  <TestimonialCard 
-                    key={`${setIndex}-${i}`}
-                    {...testimonial}
-                  />
-                ))
+        <div className="relative flex w-full flex-col items-center justify-center overflow-hidden" ref={containerRef}>
+          <div
+            className="group flex overflow-hidden p-2 [--gap:1rem] [gap:var(--gap)] flex-row [--duration:40s]"
+          >
+            <div
+              className="flex shrink-0 justify-around [gap:var(--gap)] animate-marquee flex-row group-hover:[animation-play-state:paused]"
+              ref={trackRef}
+              style={{ minWidth: trackWidth ? `${trackWidth}px` : undefined }}
+            >
+              {[...testimonials, ...testimonials].map((testimonial, i) => (
+                <div key={i}>
+                  <TestimonialCard {...testimonial} />
+                </div>
               ))}
             </div>
           </div>

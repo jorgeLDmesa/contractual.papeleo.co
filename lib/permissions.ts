@@ -57,11 +57,9 @@ export async function logUserPermissionsForModuleType(
     return;
   }
   
-  console.log(`Total de permisos encontrados: ${data?.length || 0}`);
   
   // Filtramos para el módulo específico
   const modulePermissions = data?.filter(p => p.module_id === moduleId) || [];
-  console.log(`Permisos para el módulo ${moduleId}: ${modulePermissions.length}`);
   
   // Imprimimos detalle de cada permiso
   modulePermissions.forEach((permission, index) => {

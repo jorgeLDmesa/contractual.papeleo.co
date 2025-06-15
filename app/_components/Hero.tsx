@@ -35,22 +35,22 @@ export default function Hero() {
           </Button>
         </div>
       </div>
-      <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
-        <div className="flex items-center">
-          <Check className="w-5 h-5 text-green-500 mr-2" />
-          <span>Contratos con IA</span>
+      <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500 mt-8">
+        <div className="flex items-center bg-blue-50 rounded-full px-4 py-2 shadow-sm gap-2">
+          <Check className="w-5 h-5 text-blue-600" />
+          <span className="font-medium text-blue-800">Contratos con IA</span>
         </div>
-        <div className="flex items-center">
-          <Check className="w-5 h-5 text-green-500 mr-2" />
-          <span>Validación automática</span>
+        <div className="flex items-center bg-blue-50 rounded-full px-4 py-2 shadow-sm gap-2">
+          <Check className="w-5 h-5 text-blue-600" />
+          <span className="font-medium text-blue-800">Validación automática</span>
         </div>
-        <div className="flex items-center">
-          <Check className="w-5 h-5 text-green-500 mr-2" />
-          <span>Gestión de documentos</span>
+        <div className="flex items-center bg-blue-50 rounded-full px-4 py-2 shadow-sm gap-2">
+          <Check className="w-5 h-5 text-blue-600" />
+          <span className="font-medium text-blue-800">Gestión de documentos</span>
         </div>
-        <div className="flex items-center">
-          <Check className="w-5 h-5 text-green-500 mr-2" />
-          <span>Antecedentes judiciales</span>
+        <div className="flex items-center bg-blue-50 rounded-full px-4 py-2 shadow-sm gap-2">
+          <Check className="w-5 h-5 text-blue-600" />
+          <span className="font-medium text-blue-800">Antecedentes judiciales</span>
         </div>
       </div>
     </div>
