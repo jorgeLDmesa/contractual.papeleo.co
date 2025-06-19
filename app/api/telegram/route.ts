@@ -31,11 +31,9 @@ interface TelegramMessageOptions {
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
 if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
 if (!process.env.TELEGRAM_BOT_TOKEN) throw new Error('Missing TELEGRAM_BOT_TOKEN');
-if (!process.env.CONTRACT_MEMBER_ID) throw new Error('Missing CONTRACT_MEMBER_ID');
 
 // Constants
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CONTRACT_MEMBER_ID = process.env.CONTRACT_MEMBER_ID;
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -128,22 +126,31 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function handleMessage(message: { chat: { id: number | string } }) {
+async function handleMessage(message: { chat: { id: number | string }; text?: string }) {
   const chatId = message.chat.id;
+  const messageText = (message.text || "").trim();
   console.log('Handling message for chat ID:', chatId);
+
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  if (!uuidRegex.test(messageText)) {
+    await sendTelegramMessage(chatId, "Hola, por favor ingresa tu ID de miembro de contrato para consultar tus documentos.");
+    return NextResponse.json({ ok: true });
+  }
+
+  const contractMemberId = messageText;
 
   try {
     const { data, error } = await supabase
       .from('contractual_documents')
       .select('id, url, required_document_id, required_documents:required_documents(name)')
-      .eq('contract_member_id', CONTRACT_MEMBER_ID)
+      .eq('contract_member_id', contractMemberId)
       .is('deleted_at', null);
 
     console.log('Supabase query result:', { data, error });
 
     if (error) throw error;
     if (!data || data.length === 0) {
-      await sendTelegramMessage(chatId, "No tienes documentos requeridos aún.");
+      await sendTelegramMessage(chatId, "No tienes documentos requeridos para el ID proporcionado.");
       return NextResponse.json({ ok: true });
     }
 
