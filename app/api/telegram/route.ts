@@ -41,6 +41,9 @@ if (!process.env.TELEGRAM_BOT_TOKEN) throw new Error('Missing TELEGRAM_BOT_TOKEN
 // Constants
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
+// In-memory store for user upload state
+const userUploadState: { [key: string]: { docId: string; month?: string; docName: string } } = {};
+
 async function sendTelegramMessage(chatId: number | string, text: string, extra: TelegramMessageOptions = {}) {
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -105,6 +108,12 @@ export async function POST(req: NextRequest) {
       await sendTelegramMessage(chatId, '✅ Bot is working correctly!');
       return NextResponse.json({ ok: true });
     }
+    
+    // Handle document upload
+    if (body.message && body.message.document) {
+      console.log('Processing document upload:', body.message);
+      return await handleDocumentUpload(body.message);
+    }
 
     // Handle regular message
     if (body.message) {
@@ -123,6 +132,139 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error processing request:', error);
     return NextResponse.json({ ok: false, error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+async function verifyDocumentWithAI(file: ArrayBuffer, fileName: string, documentName: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const formData = new FormData();
+    const blob = new Blob([file]);
+    formData.append('file', blob, fileName);
+    formData.append('documentName', documentName);
+
+    // We need the full URL since we're calling this from a serverless function
+    const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/api/verify-document`;
+    
+    const response = await fetch(verifyUrl, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Error verifying document');
+    }
+
+    if (!result.isValid) {
+      return { success: false, error: '❌ La IA detectó que este documento no es el correcto' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('AI Verification Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown verification error',
+    };
+  }
+}
+
+async function handleDocumentUpload(message: {
+  chat: { id: number | string };
+  document: { file_id: string; file_name: string };
+}) {
+  const chatId = message.chat.id;
+  const state = userUploadState[chatId];
+
+  if (!state) {
+    await sendTelegramMessage(chatId, 'Por favor, primero selecciona el documento que deseas subir.');
+    return NextResponse.json({ ok: true });
+  }
+
+  const { docId, month, docName } = state;
+
+  try {
+    await sendTelegramMessage(chatId, `Subiendo ${docName}...`);
+
+    // 1. Get file path from Telegram
+    const fileResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${message.document.file_id}`);
+    const fileData = await fileResponse.json();
+    if (!fileData.ok) {
+      throw new Error('Failed to get file info from Telegram.');
+    }
+    const filePath = fileData.result.file_path;
+
+    // 2. Download file
+    const fileContentResponse = await fetch(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`);
+    const fileContent = await fileContentResponse.arrayBuffer();
+
+    // AI verification for pre-contractual documents
+    if (!month) {
+      const verification = await verifyDocumentWithAI(fileContent, message.document.file_name, docName);
+      if (!verification.success) {
+        await sendTelegramMessage(chatId, verification.error || 'Error de verificación.');
+        // Clean up state
+        delete userUploadState[chatId];
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // 3. Upload to Supabase Storage
+    const fileName = `${docId}/${message.document.file_name}`;
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('contractual-documents')
+      .upload(fileName, fileContent, {
+        contentType: 'application/octet-stream', // Or use a more specific content type
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error('Error uploading to Supabase Storage:', uploadError);
+      throw new Error('Error al subir el archivo.');
+    }
+
+    // 4. Get public URL
+    const { data: urlData } = supabaseAdmin.storage
+      .from('contractual-documents')
+      .getPublicUrl(fileName);
+      
+    const publicUrl = urlData.publicUrl;
+
+    // 5. Update contractual_documents table
+    // If there's no month, it's a pre-contractual document and we just update the URL.
+    // If there is a month, we also set it.
+    const updatePayload: { url: string; month?: string } = { url: publicUrl };
+    if (month) {
+      updatePayload.month = month;
+    }
+
+    const { error: dbError } = await supabaseAdmin
+      .from('contractual_documents')
+      .update(updatePayload)
+      .eq('id', docId);
+
+    if (dbError) {
+      console.error('Error updating database:', dbError);
+      throw new Error('Error al actualizar la base de datos.');
+    }
+    
+    if (!month) {
+       await sendTelegramMessage(chatId, `✅ El documento "${docName}" ha sido subido y verificado.`);
+    } else {
+       await sendTelegramMessage(chatId, `✅ El documento "${docName}" ha sido subido.`);
+    }
+
+
+    // Clean up state
+    delete userUploadState[chatId];
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('Error handling document upload:', error);
+    await sendTelegramMessage(chatId, '❌ Hubo un error al subir tu documento.');
+    delete userUploadState[chatId];
+    return NextResponse.json({ ok: false, error: 'Upload failed' }, { status: 500 });
   }
 }
 
@@ -213,10 +355,11 @@ async function getDocumentsByPhone(chatId: number | string, phoneNumber: string)
     const documents = data as { id: string; name: string; month?: string }[];
     const keyboard = documents.map((doc) => {
       const text = doc.month ? `${doc.name} (Mes: ${doc.month})` : doc.name;
-      return [{ text, callback_data: `GET_DOC_${doc.id}` }];
+      const callback_data = `UPLOAD_DOC_${doc.id}|${doc.name}${doc.month ? `|${doc.month}` : ''}`;
+      return [{ text, callback_data }];
     });
 
-    await sendTelegramMessage(chatId, 'Selecciona el documento pendiente que deseas consultar:', {
+    await sendTelegramMessage(chatId, 'Selecciona el documento pendiente que deseas subir:', {
       reply_markup: { inline_keyboard: keyboard },
     });
 
@@ -234,36 +377,53 @@ async function handleCallbackQuery(callbackQuery: {
   id: string 
 }) {
   const chatId = callbackQuery.message.chat.id;
-  const docId = callbackQuery.data.replace('GET_DOC_', '');
-  console.log('Handling callback query:', { chatId, docId });
+  const callbackData = callbackQuery.data;
 
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('contractual_documents')
-      .select('url, required_documents:required_documents(name)')
-      .eq('id', docId)
-      .single();
+  await answerCallbackQuery(callbackQuery.id);
+  
+  if (callbackData.startsWith('UPLOAD_DOC_')) {
+    const [_, docId, docName, month] = callbackData.split('|');
+    
+    // Store user's intent to upload a specific document
+    userUploadState[chatId] = { docId, docName, month };
 
-    console.log('Supabase query result:', { data, error });
-
-    if (error) throw error;
-
-    const document = data as unknown as ContractualDocument;
-    const documentName = document?.required_documents?.name ?? 'Documento';
-    const text = !document || !document.url
-      ? `❗️El documento *${documentName}* aún no ha sido subido.`
-      : `✅ *${documentName}*\n[Ver documento](${document.url})`;
-
-    await sendTelegramMessage(chatId, text, { 
-      parse_mode: "Markdown", 
-      disable_web_page_preview: true 
-    });
-    await answerCallbackQuery(callbackQuery.id);
-
+    await sendTelegramMessage(chatId, `Por favor, sube el archivo para "${docName}${month ? ` (${month})` : ''}".`);
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error('Error handling callback query:', error);
-    await sendTelegramMessage(chatId, "❌ Error al obtener el documento.");
-    return NextResponse.json({ ok: false, error: 'Error processing callback query' }, { status: 500 });
   }
+  
+  if (callbackData.startsWith('GET_DOC_')) {
+      const docId = callbackData.replace('GET_DOC_', '');
+      console.log('Handling callback query:', { chatId, docId });
+
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('contractual_documents')
+          .select('url, required_documents:required_documents(name)')
+          .eq('id', docId)
+          .single();
+
+        console.log('Supabase query result:', { data, error });
+
+        if (error) throw error;
+
+        const document = data as unknown as ContractualDocument;
+        const documentName = document?.required_documents?.name ?? 'Documento';
+        const text = !document || !document.url
+          ? `❗️El documento *${documentName}* aún no ha sido subido.`
+          : `✅ *${documentName}*\n[Ver documento](${document.url})`;
+
+        await sendTelegramMessage(chatId, text, { 
+          parse_mode: "Markdown", 
+          disable_web_page_preview: true 
+        });
+        
+        return NextResponse.json({ ok: true });
+      } catch (error) {
+        console.error('Error handling callback query:', error);
+        await sendTelegramMessage(chatId, "❌ Error al obtener el documento.");
+        return NextResponse.json({ ok: false, error: 'Error processing callback query' }, { status: 500 });
+      }
+  }
+
+  return NextResponse.json({ ok: true });
 }
