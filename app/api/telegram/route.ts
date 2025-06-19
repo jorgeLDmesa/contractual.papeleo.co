@@ -19,10 +19,18 @@ interface TelegramKeyboard {
   callback_data: string;
 }
 
+interface KeyboardButton {
+  text: string;
+  request_contact?: boolean;
+}
+
 interface TelegramMessageOptions {
   parse_mode?: 'Markdown' | 'HTML';
   reply_markup?: {
-    inline_keyboard: TelegramKeyboard[][];
+    inline_keyboard?: TelegramKeyboard[][];
+    keyboard?: KeyboardButton[][];
+    one_time_keyboard?: boolean;
+    resize_keyboard?: boolean;
   };
   disable_web_page_preview?: boolean;
 }
@@ -118,51 +126,75 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function handleMessage(message: { chat: { id: number | string }; text?: string }) {
+async function handleMessage(message: {
+  chat: { id: number | string };
+  text?: string;
+  contact?: { phone_number: string };
+}) {
   const chatId = message.chat.id;
-  const messageText = (message.text || "").trim();
   console.log('Handling message for chat ID:', chatId);
 
-  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-  if (!uuidRegex.test(messageText)) {
-    await sendTelegramMessage(chatId, "Hola, por favor ingresa tu ID de miembro de contrato para consultar tus documentos.");
-    return NextResponse.json({ ok: true });
-  }
+  if (message.contact) {
+    const phoneNumber = message.contact.phone_number.replace(/\D/g, '');
 
-  const contractMemberId = messageText;
+    try {
+      const { data, error } = await supabaseAdmin.rpc('get_pending_documents_by_phone', {
+        user_phone: phoneNumber,
+      });
 
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('contractual_documents')
-      .select('id, url, required_document_id, required_documents:required_documents(name)')
-      .eq('contract_member_id', contractMemberId)
-      .is('deleted_at', null);
+      if (error) {
+        console.error('Error calling RPC:', error);
+        throw error;
+      }
 
-    console.log('Supabase query result:', { data, error });
+      console.log('RPC result:', JSON.stringify(data, null, 2));
 
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      await sendTelegramMessage(chatId, "No tienes documentos requeridos para el ID proporcionado.");
+      if (!data || data.length === 0) {
+        await sendTelegramMessage(chatId, 'No tienes documentos pendientes.');
+        return NextResponse.json({ ok: true });
+      }
+
+      if (data[0] && data[0].error) {
+        await sendTelegramMessage(chatId, `Error: ${data[0].error}`);
+        return NextResponse.json({ ok: true });
+      }
+
+      const documents = data as { id: string; name: string; month?: string }[];
+      const keyboard = documents.map((doc) => {
+        const text = doc.month ? `${doc.name} (Mes: ${doc.month})` : doc.name;
+        return [{ text, callback_data: `GET_DOC_${doc.id}` }];
+      });
+
+      await sendTelegramMessage(chatId, 'Selecciona el documento pendiente que deseas consultar:', {
+        reply_markup: { inline_keyboard: keyboard },
+      });
+
       return NextResponse.json({ ok: true });
+    } catch (error) {
+      console.error('Error handling message:', error);
+      await sendTelegramMessage(chatId, '❌ Error consultando tus documentos pendientes.');
+      return NextResponse.json({ ok: false, error: 'Error processing message' }, { status: 500 });
     }
-
-    const documents = data as unknown as ContractualDocument[];
-    const keyboard = documents.map(doc => [{
-      text: doc.required_documents?.name || 'Documento',
-      callback_data: `GET_DOC_${doc.id}`
-    }]);
-
-    console.log('Sending keyboard:', keyboard);
-
-    await sendTelegramMessage(chatId, "Selecciona el documento que deseas consultar:", {
-      reply_markup: { inline_keyboard: keyboard }
-    });
-
+  } else {
+    await sendTelegramMessage(
+      chatId,
+      'Hola 👋, para consultar tus documentos pendientes por favor comparte tu número de teléfono.',
+      {
+        reply_markup: {
+          keyboard: [
+            [
+              {
+                text: 'Compartir mi número de teléfono',
+                request_contact: true,
+              },
+            ],
+          ],
+          one_time_keyboard: true,
+          resize_keyboard: true,
+        },
+      }
+    );
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error('Error handling message:', error);
-    await sendTelegramMessage(chatId, "❌ Error consultando documentos.");
-    return NextResponse.json({ ok: false, error: 'Error processing message' }, { status: 500 });
   }
 }
 
