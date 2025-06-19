@@ -131,70 +131,100 @@ async function handleMessage(message: {
   text?: string;
   contact?: { phone_number: string };
 }) {
-  const chatId = message.chat.id;
-  console.log('Handling message for chat ID:', chatId);
+  const chatId = message.chat.id; // This is the telegram_id
+  console.log('Handling message for chat ID (telegram_id):', chatId);
 
+  // If user shares contact info, handle it.
   if (message.contact) {
     const phoneNumber = message.contact.phone_number.replace(/\D/g, '');
 
-    try {
-      const { data, error } = await supabaseAdmin.rpc('get_pending_documents_by_phone', {
-        user_phone: phoneNumber,
-      });
+    // Update the user's record with their telegram_id for future use.
+    // We don't block on this failing, just log it. The RPC is the source of truth for user existence.
+    const { error: updateError } = await supabaseAdmin
+      .from('users')
+      .update({ telegram_id: chatId })
+      .eq('telefono', phoneNumber);
 
-      if (error) {
-        console.error('Error calling RPC:', error);
-        throw error;
-      }
-
-      console.log('RPC result:', JSON.stringify(data, null, 2));
-
-      if (!data || data.length === 0) {
-        await sendTelegramMessage(chatId, 'No tienes documentos pendientes.');
-        return NextResponse.json({ ok: true });
-      }
-
-      if (data[0] && data[0].error) {
-        await sendTelegramMessage(chatId, `Error: ${data[0].error}`);
-        return NextResponse.json({ ok: true });
-      }
-
-      const documents = data as { id: string; name: string; month?: string }[];
-      const keyboard = documents.map((doc) => {
-        const text = doc.month ? `${doc.name} (Mes: ${doc.month})` : doc.name;
-        return [{ text, callback_data: `GET_DOC_${doc.id}` }];
-      });
-
-      await sendTelegramMessage(chatId, 'Selecciona el documento pendiente que deseas consultar:', {
-        reply_markup: { inline_keyboard: keyboard },
-      });
-
-      return NextResponse.json({ ok: true });
-    } catch (error) {
-      console.error('Error handling message:', error);
-      await sendTelegramMessage(chatId, '❌ Error consultando tus documentos pendientes.');
-      return NextResponse.json({ ok: false, error: 'Error processing message' }, { status: 500 });
+    if (updateError) {
+      console.error(`Could not update telegram_id for phone ${phoneNumber}:`, updateError.message);
+    } else {
+      console.log(`Updated telegram_id for user with phone ${phoneNumber}.`);
     }
-  } else {
-    await sendTelegramMessage(
-      chatId,
-      'Hola 👋, para consultar tus documentos pendientes por favor comparte tu número de teléfono.',
-      {
-        reply_markup: {
-          keyboard: [
-            [
-              {
-                text: 'Compartir mi número de teléfono',
-                request_contact: true,
-              },
-            ],
-          ],
-          one_time_keyboard: true,
-          resize_keyboard: true,
-        },
-      }
-    );
+
+    return await getDocumentsByPhone(chatId, phoneNumber);
+  }
+
+  // If no contact info is provided, check if we already know the user by telegram_id.
+  const { data: user, error: userError } = await supabaseAdmin
+    .from('users')
+    .select('telefono')
+    .eq('telegram_id', chatId)
+    .single();
+
+  if (userError && userError.code !== 'PGRST116') { // PGRST116 = no rows returned
+    console.error('Error fetching user by telegram_id:', userError);
+    await sendTelegramMessage(chatId, '❌ Ocurrió un error al verificar tu cuenta.');
+    return NextResponse.json({ ok: false, error: 'Error fetching user' }, { status: 500 });
+  }
+
+  // If user is found, get documents directly.
+  if (user && user.telefono) {
+    return await getDocumentsByPhone(chatId, user.telefono.toString());
+  }
+
+  // If user is not found and no contact was shared, ask for phone number.
+  await sendTelegramMessage(
+    chatId,
+    'Hola 👋, para consultar tus documentos pendientes por favor comparte tu número de teléfono.',
+    {
+      reply_markup: {
+        keyboard: [[{ text: 'Compartir mi número de teléfono', request_contact: true }]],
+        one_time_keyboard: true,
+        resize_keyboard: true,
+      },
+    }
+  );
+  return NextResponse.json({ ok: true });
+}
+
+async function getDocumentsByPhone(chatId: number | string, phoneNumber: string) {
+  try {
+    const { data, error } = await supabaseAdmin.rpc('get_pending_documents_by_phone', {
+      user_phone: phoneNumber,
+    });
+
+    if (error) {
+      console.error('Error calling RPC:', error);
+      throw error;
+    }
+
+    console.log('RPC result:', JSON.stringify(data, null, 2));
+
+    if (!data || data.length === 0) {
+      await sendTelegramMessage(chatId, 'No tienes documentos pendientes.');
+      return NextResponse.json({ ok: true });
+    }
+
+    if (data[0] && data[0].error) {
+      await sendTelegramMessage(chatId, `Error: ${data[0].error}`);
+      return NextResponse.json({ ok: true });
+    }
+
+    const documents = data as { id: string; name: string; month?: string }[];
+    const keyboard = documents.map((doc) => {
+      const text = doc.month ? `${doc.name} (Mes: ${doc.month})` : doc.name;
+      return [{ text, callback_data: `GET_DOC_${doc.id}` }];
+    });
+
+    await sendTelegramMessage(chatId, 'Selecciona el documento pendiente que deseas consultar:', {
+      reply_markup: { inline_keyboard: keyboard },
+    });
+
     return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('Error handling getDocumentsByPhone:', error);
+    await sendTelegramMessage(chatId, '❌ Error consultando tus documentos pendientes.');
+    return NextResponse.json({ ok: false, error: 'Error processing message' }, { status: 500 });
   }
 }
 
