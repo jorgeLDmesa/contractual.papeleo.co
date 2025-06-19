@@ -46,6 +46,8 @@ const supabase = createClient(
 async function sendTelegramMessage(chatId: number | string, text: string, extra: TelegramMessageOptions = {}) {
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    console.log('Sending message to Telegram:', { chatId, text, extra });
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: { "Content-Type": "application/json" },
@@ -57,8 +59,13 @@ async function sendTelegramMessage(chatId: number | string, text: string, extra:
     });
 
     if (!response.ok) {
-      throw new Error(`Telegram API error: ${response.statusText}`);
+      const errorData = await response.text();
+      throw new Error(`Telegram API error: ${response.statusText}. Details: ${errorData}`);
     }
+
+    const responseData = await response.json();
+    console.log('Telegram API response:', responseData);
+    return responseData;
   } catch (error) {
     console.error('Error sending Telegram message:', error);
     throw error;
@@ -75,7 +82,8 @@ async function answerCallbackQuery(callback_query_id: string) {
     });
 
     if (!response.ok) {
-      throw new Error(`Telegram API error: ${response.statusText}`);
+      const errorData = await response.text();
+      throw new Error(`Telegram API error: ${response.statusText}. Details: ${errorData}`);
     }
   } catch (error) {
     console.error('Error answering callback query:', error);
@@ -83,20 +91,36 @@ async function answerCallbackQuery(callback_query_id: string) {
   }
 }
 
+export async function GET() {
+  return NextResponse.json({ status: 'Webhook is active' });
+}
+
 export async function POST(req: NextRequest) {
   try {
+    console.log('Received webhook request');
     const body = await req.json();
+    console.log('Webhook body:', JSON.stringify(body, null, 2));
+
+    // Simple echo message for testing
+    if (body.message?.text === '/test') {
+      const chatId = body.message.chat.id;
+      await sendTelegramMessage(chatId, '✅ Bot is working correctly!');
+      return NextResponse.json({ ok: true });
+    }
 
     // Handle regular message
     if (body.message) {
+      console.log('Processing message:', body.message);
       return await handleMessage(body.message);
     }
 
     // Handle callback query
     if (body.callback_query) {
+      console.log('Processing callback query:', body.callback_query);
       return await handleCallbackQuery(body.callback_query);
     }
 
+    console.log('No message or callback query found in request');
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Error processing request:', error);
@@ -106,6 +130,7 @@ export async function POST(req: NextRequest) {
 
 async function handleMessage(message: { chat: { id: number | string } }) {
   const chatId = message.chat.id;
+  console.log('Handling message for chat ID:', chatId);
 
   try {
     const { data, error } = await supabase
@@ -113,6 +138,8 @@ async function handleMessage(message: { chat: { id: number | string } }) {
       .select('id, url, required_document_id, required_documents:required_documents(name)')
       .eq('contract_member_id', CONTRACT_MEMBER_ID)
       .is('deleted_at', null);
+
+    console.log('Supabase query result:', { data, error });
 
     if (error) throw error;
     if (!data || data.length === 0) {
@@ -125,6 +152,8 @@ async function handleMessage(message: { chat: { id: number | string } }) {
       text: doc.required_documents?.name || 'Documento',
       callback_data: `GET_DOC_${doc.id}`
     }]);
+
+    console.log('Sending keyboard:', keyboard);
 
     await sendTelegramMessage(chatId, "Selecciona el documento que deseas consultar:", {
       reply_markup: { inline_keyboard: keyboard }
@@ -145,6 +174,7 @@ async function handleCallbackQuery(callbackQuery: {
 }) {
   const chatId = callbackQuery.message.chat.id;
   const docId = callbackQuery.data.replace('GET_DOC_', '');
+  console.log('Handling callback query:', { chatId, docId });
 
   try {
     const { data, error } = await supabase
@@ -152,6 +182,8 @@ async function handleCallbackQuery(callbackQuery: {
       .select('url, required_documents:required_documents(name)')
       .eq('id', docId)
       .single();
+
+    console.log('Supabase query result:', { data, error });
 
     if (error) throw error;
 
