@@ -136,10 +136,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function verifyDocumentWithAI(file: ArrayBuffer, fileName: string, documentName: string): Promise<{ success: boolean; error?: string }> {
+async function verifyDocumentWithAI(file: ArrayBuffer, fileName: string, documentName: string, mimeType: string): Promise<{ success: boolean; error?: string }> {
   try {
     const formData = new FormData();
-    const blob = new Blob([file]);
+    const blob = new Blob([file], { type: mimeType });
     formData.append('file', blob, fileName);
     formData.append('documentName', documentName);
 
@@ -173,7 +173,7 @@ async function verifyDocumentWithAI(file: ArrayBuffer, fileName: string, documen
 
 async function handleDocumentUpload(message: {
   chat: { id: number | string };
-  document: { file_id: string; file_name: string };
+  document: { file_id: string; file_name: string; mime_type: string; };
 }) {
   const chatId = message.chat.id;
   const state = userUploadState[chatId];
@@ -202,7 +202,7 @@ async function handleDocumentUpload(message: {
 
     // AI verification for pre-contractual documents
     if (!month) {
-      const verification = await verifyDocumentWithAI(fileContent, message.document.file_name, docName);
+      const verification = await verifyDocumentWithAI(fileContent, message.document.file_name, docName, message.document.mime_type);
       if (!verification.success) {
         await sendTelegramMessage(chatId, verification.error || 'Error de verificación.');
         // Clean up state
@@ -216,7 +216,7 @@ async function handleDocumentUpload(message: {
     const { error: uploadError } = await supabaseAdmin.storage
       .from('contractual-documents')
       .upload(fileName, fileContent, {
-        contentType: 'application/octet-stream', // Or use a more specific content type
+        contentType: message.document.mime_type,
         upsert: true,
       });
 
