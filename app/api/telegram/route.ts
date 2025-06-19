@@ -42,8 +42,13 @@ if (!process.env.NEXT_PUBLIC_SITE_URL) throw new Error('Missing NEXT_PUBLIC_SITE
 // Constants
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
-// In-memory store for user upload state
-const userUploadState: { [key: string]: { docId: string; month?: string; docName: string } } = {};
+function sanitizeFileName(fileName: string) {
+  // Replace spaces with underscores
+  let sanitized = fileName.replace(/\s+/g, '_');
+  // Remove special characters except for underscore, hyphen, and period
+  sanitized = sanitized.replace(/[^a-zA-Z0-9-_\.]/g, '');
+  return sanitized;
+}
 
 async function sendTelegramMessage(chatId: number | string, text: string, extra: TelegramMessageOptions = {}) {
   try {
@@ -176,17 +181,35 @@ async function handleDocumentUpload(message: {
   document: { file_id: string; file_name: string; mime_type: string; };
 }) {
   const chatId = message.chat.id;
-  const state = userUploadState[chatId];
 
-  if (!state) {
+  const { data: state, error: stateError } = await supabaseAdmin
+    .from('telegram_upload_state')
+    .select('*')
+    .eq('chat_id', chatId)
+    .single();
+
+  if (stateError || !state) {
     await sendTelegramMessage(chatId, 'Por favor, primero selecciona el documento que deseas subir.');
     return NextResponse.json({ ok: true });
   }
 
-  const { docId, month, docName } = state;
+  const { doc_id: docId, doc_name: docName, month } = state;
 
   try {
     await sendTelegramMessage(chatId, `Subiendo ${docName}...`);
+
+    // Fetch memberId from the contractual document
+    const { data: docData, error: docError } = await supabaseAdmin
+      .from('contractual_documents')
+      .select('contract_member_id')
+      .eq('id', docId)
+      .single();
+
+    if (docError || !docData) {
+      console.error('Error fetching member ID:', docError);
+      throw new Error('No se pudo verificar la información del documento.');
+    }
+    const memberId = docData.contract_member_id;
 
     // 1. Get file path from Telegram
     const fileResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${message.document.file_id}`);
@@ -206,16 +229,19 @@ async function handleDocumentUpload(message: {
       if (!verification.success) {
         await sendTelegramMessage(chatId, verification.error || 'Error de verificación.');
         // Clean up state
-        delete userUploadState[chatId];
+        await supabaseAdmin.from('telegram_upload_state').delete().eq('chat_id', chatId);
         return NextResponse.json({ ok: true });
       }
     }
 
     // 3. Upload to Supabase Storage
-    const fileName = `${docId}/${message.document.file_name}`;
+    const sanitizedFileName = sanitizeFileName(message.document.file_name);
+    const folder = month ? 'contractualdocuments' : 'precontractualdocuments';
+    const path = `${folder}/${memberId}/${sanitizedFileName}`;
+
     const { error: uploadError } = await supabaseAdmin.storage
-      .from('contractual-documents')
-      .upload(fileName, fileContent, {
+      .from('contractual')
+      .upload(path, fileContent, {
         contentType: message.document.mime_type,
         upsert: true,
       });
@@ -227,8 +253,8 @@ async function handleDocumentUpload(message: {
 
     // 4. Get public URL
     const { data: urlData } = supabaseAdmin.storage
-      .from('contractual-documents')
-      .getPublicUrl(fileName);
+      .from('contractual')
+      .getPublicUrl(path);
       
     const publicUrl = urlData.publicUrl;
 
@@ -258,13 +284,13 @@ async function handleDocumentUpload(message: {
 
 
     // Clean up state
-    delete userUploadState[chatId];
+    await supabaseAdmin.from('telegram_upload_state').delete().eq('chat_id', chatId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Error handling document upload:', error);
     await sendTelegramMessage(chatId, '❌ Hubo un error al subir tu documento.');
-    delete userUploadState[chatId];
+    await supabaseAdmin.from('telegram_upload_state').delete().eq('chat_id', chatId);
     return NextResponse.json({ ok: false, error: 'Upload failed' }, { status: 500 });
   }
 }
@@ -385,8 +411,19 @@ async function handleCallbackQuery(callbackQuery: {
   if (callbackData.startsWith('UPLOAD_DOC|')) {
     const [, docId, docName, month] = callbackData.split('|');
     
-    // Store user's intent to upload a specific document
-    userUploadState[chatId] = { docId, docName, month };
+    // Store user's intent to upload a specific document in the database
+    const { error } = await supabaseAdmin.from('telegram_upload_state').upsert({
+      chat_id: chatId,
+      doc_id: docId,
+      doc_name: docName,
+      month: month || null,
+    });
+
+    if (error) {
+      console.error('Error saving upload state:', error);
+      await sendTelegramMessage(chatId, 'Hubo un error al preparar la subida. Por favor, inténtalo de nuevo.');
+      return NextResponse.json({ ok: false, error: 'State save failed' });
+    }
 
     await sendTelegramMessage(chatId, `Por favor, sube el archivo para "${docName}${month ? ` (${month})` : ''}".`);
     return NextResponse.json({ ok: true });
