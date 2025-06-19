@@ -355,7 +355,7 @@ async function getDocumentsByPhone(chatId: number | string, phoneNumber: string)
     const documents = data as { id: string; name: string; month?: string }[];
     const keyboard = documents.map((doc) => {
       const text = doc.month ? `${doc.name} (Mes: ${doc.month})` : doc.name;
-      const callback_data = `UPLOAD_DOC_${doc.id}|${doc.name}${doc.month ? `|${doc.month}` : ''}`;
+      const callback_data = `UPLOAD_DOC|${doc.id}|${doc.name}${doc.month ? `|${doc.month}` : ''}`;
       return [{ text, callback_data }];
     });
 
@@ -381,8 +381,8 @@ async function handleCallbackQuery(callbackQuery: {
 
   await answerCallbackQuery(callbackQuery.id);
   
-  if (callbackData.startsWith('UPLOAD_DOC_')) {
-    const [_, docId, docName, month] = callbackData.split('|');
+  if (callbackData.startsWith('UPLOAD_DOC|')) {
+    const [, docId, docName, month] = callbackData.split('|');
     
     // Store user's intent to upload a specific document
     userUploadState[chatId] = { docId, docName, month };
