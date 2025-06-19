@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabase/service-role';
 
 // Types
 type RequiredDocuments = {
@@ -28,18 +28,10 @@ interface TelegramMessageOptions {
 }
 
 // Environment variables validation
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
 if (!process.env.TELEGRAM_BOT_TOKEN) throw new Error('Missing TELEGRAM_BOT_TOKEN');
 
 // Constants
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 async function sendTelegramMessage(chatId: number | string, text: string, extra: TelegramMessageOptions = {}) {
   try {
@@ -140,7 +132,7 @@ async function handleMessage(message: { chat: { id: number | string }; text?: st
   const contractMemberId = messageText;
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('contractual_documents')
       .select('id, url, required_document_id, required_documents:required_documents(name)')
       .eq('contract_member_id', contractMemberId)
@@ -184,7 +176,7 @@ async function handleCallbackQuery(callbackQuery: {
   console.log('Handling callback query:', { chatId, docId });
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('contractual_documents')
       .select('url, required_documents:required_documents(name)')
       .eq('id', docId)
