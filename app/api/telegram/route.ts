@@ -37,6 +37,7 @@ interface TelegramMessageOptions {
 
 // Environment variables validation
 if (!process.env.TELEGRAM_BOT_TOKEN) throw new Error('Missing TELEGRAM_BOT_TOKEN');
+if (!process.env.NEXT_PUBLIC_SITE_URL) throw new Error('Missing NEXT_PUBLIC_SITE_URL');
 
 // Constants
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
