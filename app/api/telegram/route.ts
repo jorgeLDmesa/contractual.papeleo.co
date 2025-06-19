@@ -13,6 +13,20 @@ interface ContractualDocument {
   required_documents: RequiredDocuments;
 }
 
+// Telegram types
+interface TelegramKeyboard {
+  text: string;
+  callback_data: string;
+}
+
+interface TelegramMessageOptions {
+  parse_mode?: 'Markdown' | 'HTML';
+  reply_markup?: {
+    inline_keyboard: TelegramKeyboard[][];
+  };
+  disable_web_page_preview?: boolean;
+}
+
 // Environment variables validation
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
 if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
@@ -29,7 +43,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-async function sendTelegramMessage(chatId: number | string, text: string, extra: Record<string, any> = {}) {
+async function sendTelegramMessage(chatId: number | string, text: string, extra: TelegramMessageOptions = {}) {
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const response = await fetch(url, {
