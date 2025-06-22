@@ -4,7 +4,6 @@ import ContractDialog from './DialogSign';
 import { PrecontractualDialog } from './etapa-precontractual';
 import { ContractualDialog } from './etapa-contractual';
 import { toast } from 'sonner';
-import { handleDocumentView } from '../actions/actionClient';
 import type { ContractStatus, ContractData } from '../actions/actionServer';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 

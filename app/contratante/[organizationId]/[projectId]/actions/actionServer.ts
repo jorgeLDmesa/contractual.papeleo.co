@@ -13,7 +13,6 @@ import {
   User
 } from "../types"
 import { google } from 'googleapis'
-import { getUser } from '@/lib/supabase/queries'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 

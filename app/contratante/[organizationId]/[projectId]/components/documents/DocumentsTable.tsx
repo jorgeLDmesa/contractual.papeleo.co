@@ -462,7 +462,7 @@ async function openContractDocument(path: string, setLoading: (v: boolean) => vo
     } else {
       toast.error(result.error || 'No se pudo abrir el documento');
     }
-  } catch (err) {
+  } catch {
     toast.error('Error inesperado al abrir el documento');
   } finally {
     setLoading(false);
@@ -561,7 +561,7 @@ export default function DocumentsTable({ projectDocuments, searchTerm }: Documen
       } else {
         toast.error(data.message || "Error al firmar el contrato");
       }
-    } catch (err) {
+    } catch {
       toast.error("Error inesperado al firmar el contrato");
     } finally {
       setIsSigning(false);
