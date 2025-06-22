@@ -12,6 +12,8 @@ import {
   ProjectDocument,
   User
 } from "../types"
+import { google } from 'googleapis'
+import { getUser } from '@/lib/supabase/queries'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -472,7 +474,7 @@ export async function sendContractInvitation(
       invited_at,
       accepted_at,
       user:users(email),
-      contracts(name, project_id)
+      contracts(name, project_id, contract_draft_url)
     `)
     .single()
 
@@ -482,6 +484,55 @@ export async function sendContractInvitation(
 
   const userObj = Array.isArray(data.user) ? data.user[0] : data.user;
   const contractsObj = Array.isArray(data.contracts) ? data.contracts[0] : data.contracts;
+
+  // Duplicar el documento de Google Docs si existe contract_draft_url
+  if (contractsObj?.contract_draft_url && contractsObj.contract_draft_url.includes('docs.google.com/document/d/')) {
+    try {
+      // Extraer el documentId original
+      const match = contractsObj.contract_draft_url.match(/\/d\/([\w-]+)/);
+      const originalDocId = match ? match[1] : null;
+      if (originalDocId) {
+        // Autenticación Google
+        const serviceAccountAuth = new google.auth.GoogleAuth({
+          credentials: {
+            client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+            private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+          },
+          scopes: [
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/documents',
+          ],
+        });
+        const drive = google.drive({ version: 'v3', auth: serviceAccountAuth });
+        // Obtener el archivo original para saber la carpeta
+        const fileMeta = await drive.files.get({ fileId: originalDocId, fields: 'parents, name' });
+        const parents = fileMeta.data.parents || ['1KE706IBz1TZMLd6_q2WdMx7K8HIt6JyJ'];
+        const originalName = fileMeta.data.name || 'Contrato';
+        // Nuevo nombre
+        const newName = `${originalName}_${data.id}`;
+        // Duplicar el archivo
+        const copyRes = await drive.files.copy({
+          fileId: originalDocId,
+          requestBody: {
+            name: newName,
+            parents,
+          },
+          fields: 'id',
+        });
+        const newDocId = copyRes.data.id;
+        if (newDocId) {
+          const newDocUrl = `https://docs.google.com/document/d/${newDocId}/edit`;
+          // Actualizar contract_url en contract_members
+          await supabase
+            .from('contract_members')
+            .update({ contract_url: newDocUrl })
+            .eq('id', data.id);
+        }
+      }
+    } catch (err) {
+      console.error('Error duplicando documento de Google Docs para contract_member:', err);
+    }
+  }
 
   // Create contractual documents if start and end dates are provided
   if (startDate && endDate) {
@@ -596,7 +647,7 @@ export async function fetchProjectDocumentsByProjectId(projectId: string): Promi
     // First, get all contracts for this project
     const { data: contracts, error: contractsError } = await supabase
       .from("contracts")
-      .select("id, name")
+      .select("id, name, contract_draft_url")
       .eq("project_id", projectId)
       .is("deleted_at", null)
 
@@ -620,7 +671,8 @@ export async function fetchProjectDocumentsByProjectId(projectId: string): Promi
         status_juridico,
         ending,
         contract_id,
-        user_id
+        user_id,
+        contratante_signed
       `)
       .in("contract_id", contractIds)
 
@@ -680,6 +732,7 @@ export async function fetchProjectDocumentsByProjectId(projectId: string): Promi
           username: user.username ?? "",
           email: user.email ?? "",
           contractUrl: member.contract_url,
+          contractDraftUrl: contract.contract_draft_url,
           status: member.status,
           statusJuridico: member.status_juridico,
           ending: member.ending,
@@ -697,6 +750,7 @@ export async function fetchProjectDocumentsByProjectId(projectId: string): Promi
               url: matchedDoc?.url,
             }
           }),
+          contratante_signed: member.contratante_signed ?? false,
         }
         result.push(projectDoc)
       }
@@ -834,4 +888,160 @@ export async function fetchAllUsers(): Promise<User[]> {
     username: user.username,
     email: user.email
   }))
+}
+
+/**
+ * Inserta la firma del contratante a un lado de la del contratista en el Google Doc
+ */
+export async function signGoogleDocWithContratanteSignature(contractUrl: string, contratanteSignatureUrl: string) {
+  try {
+    // Solo si es un Google Doc
+    const match = contractUrl.match(/\/d\/([\w-]+)/);
+    const documentId = match ? match[1] : null;
+    if (!documentId) {
+      console.error('[signGoogleDocWithContratanteSignature] No se pudo extraer documentId de contractUrl:', contractUrl);
+      return;
+    }
+    // Autenticación Google
+    const serviceAccountAuth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      },
+      scopes: [
+        'https://www.googleapis.com/auth/documents',
+        'https://www.googleapis.com/auth/drive',
+      ],
+    });
+    const docs = google.docs({ version: 'v1', auth: serviceAccountAuth });
+
+    // Obtener el documento para saber el endIndex
+    const docRes = await docs.documents.get({ documentId });
+    const doc = docRes.data;
+    // Buscar el último bloque de tipo PARAGRAPH que contenga la firma del contratista
+    let lastFirmaContratistaIndex = null;
+    for (const el of doc.body?.content || []) {
+      if (el.paragraph && el.paragraph.elements) {
+        for (const elem of el.paragraph.elements) {
+          if (elem.textRun && elem.textRun.content?.includes('Firma contratista')) {
+            lastFirmaContratistaIndex = el.endIndex;
+          }
+        }
+      }
+    }
+    // Si no se encuentra, usar el final del documento
+    const insertIndex = lastFirmaContratistaIndex || (doc.body?.content?.[doc.body.content.length - 1]?.endIndex || 1);
+    // 1. Insertar salto de línea para separar
+    await docs.documents.batchUpdate({
+      documentId,
+      requestBody: {
+        requests: [
+          {
+            insertText: {
+              location: { index: insertIndex - 1 },
+              text: '\n',
+            },
+          },
+        ],
+      },
+    });
+    // 2. Insertar la imagen de la firma del contratante
+    const docAfterLineRes = await docs.documents.get({ documentId });
+    const docAfterLine = docAfterLineRes.data;
+    const endIndexAfterLine = docAfterLine.body?.content?.[docAfterLine.body.content.length - 1]?.endIndex || 1;
+    await docs.documents.batchUpdate({
+      documentId,
+      requestBody: {
+        requests: [
+          {
+            insertInlineImage: {
+              uri: contratanteSignatureUrl,
+              location: { index: endIndexAfterLine - 1 },
+              objectSize: {
+                height: { magnitude: 60, unit: 'PT' },
+                width: { magnitude: 150, unit: 'PT' },
+              },
+            },
+          },
+        ],
+      },
+    });
+    // 3. Insertar la línea debajo de la firma del contratante
+    const docAfterImageRes = await docs.documents.get({ documentId });
+    const docAfterImage = docAfterImageRes.data;
+    const endIndexAfterImage = docAfterImage.body?.content?.[docAfterImage.body.content.length - 1]?.endIndex || 1;
+    await docs.documents.batchUpdate({
+      documentId,
+      requestBody: {
+        requests: [
+          {
+            insertText: {
+              location: { index: endIndexAfterImage - 1 },
+              text: '\n________________________',
+            },
+          },
+        ],
+      },
+    });
+    // 4. Insertar el texto 'Firma contratante' debajo de la línea
+    const docAfterLine2Res = await docs.documents.get({ documentId });
+    const docAfterLine2 = docAfterLine2Res.data;
+    const endIndexAfterLine2 = docAfterLine2.body?.content?.[docAfterLine2.body.content.length - 1]?.endIndex || 1;
+    await docs.documents.batchUpdate({
+      documentId,
+      requestBody: {
+        requests: [
+          {
+            insertText: {
+              location: { index: endIndexAfterLine2 - 1 },
+              text: '\nFirma contratante\n',
+            },
+          },
+        ],
+      },
+    });
+  } catch (err) {
+    console.error('[signGoogleDocWithContratanteSignature] Error insertando firma del contratante en Google Doc:', err);
+  }
+}
+
+/**
+ * Firma el contrato como contratante: inserta la firma y actualiza el estado en la DB
+ */
+export async function handleContratanteSigning(contractMemberId: string, user_id: string): Promise<{ success: boolean; message: string }> {
+  const supabase = await createClient();
+  try {
+    // 1. Obtener contract_url y contract_id del contract_member
+    const { data: memberData, error: memberError } = await supabase
+      .from('contract_members')
+      .select('contract_url, contract_id')
+      .eq('id', contractMemberId)
+      .single();
+    if (memberError || !memberData) {
+      throw new Error('No se pudo obtener el contract_url del miembro');
+    }
+    // 2. Obtener la firma del contratante desde users usando el user_id
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('signature')
+      .eq('id', user_id)
+      .single();
+    if (userError || !userData?.signature) {
+      throw new Error('No se encontró la firma del contratante (usuario actual)');
+    }
+    // 3. Insertar la firma del contratante en el Google Doc
+    await signGoogleDocWithContratanteSignature(memberData.contract_url, userData.signature);
+    // 4. Actualizar contratante_signed a true
+    const { error: updateError } = await supabase
+      .from('contract_members')
+      .update({ contratante_signed: true })
+      .eq('id', contractMemberId);
+    if (updateError) {
+      throw new Error('No se pudo actualizar el estado de firma del contratante');
+    }
+    return { success: true, message: 'Contrato firmado exitosamente por el contratante' };
+  } catch (err) {
+    console.error('[handleContratanteSigning] Error:', err);
+    return { success: false, message: 'Error al firmar el contrato como contratante' };
+  }
 } 

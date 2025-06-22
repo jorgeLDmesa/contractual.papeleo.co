@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { createDocumentSignedUrl } from "@/app/contratista/_components/etapa-contractual/actions/actionsClient";
+import { createMemberDocumentSignedUrl } from "@/app/contratista/actions/actionClient";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { uploadResignationLetter } from "@/app/contratista/actions/actionClient";
+import { PenLine, CheckCircle2 } from "lucide-react";
+import { createClient as createSupabaseClient } from '@/lib/supabase/client';
 
 interface DocumentsTableProps {
   projectDocuments: ProjectDocumentGroupedByDueDate[]
@@ -191,7 +193,7 @@ const DocumentStatusBadge: React.FC<DocumentStatusBadgeProps> = ({ projectDocume
     if (projectDocument.ending?.url) {
       try {
         setIsLoading(true);
-        const response = await createDocumentSignedUrl(projectDocument.ending.url);
+        const response = await createMemberDocumentSignedUrl(projectDocument.ending.url);
         if (response.success && response.data) {
           window.open(response.data, '_blank');
         } else {
@@ -432,20 +434,92 @@ const DocumentStatusBadge: React.FC<DocumentStatusBadgeProps> = ({ projectDocume
   );
 };
 
+// Utilidad para abrir contratos (siempre usa signed URL para paths relativos o de storage)
+async function openContractDocument(path: string, setLoading: (v: boolean) => void) {
+  if (!path) return;
+  // Si es una URL pública (http/https), abrir directo
+  if (/^https?:\/\//.test(path) && !path.includes('localhost')) {
+    window.open(path, '_blank', 'noopener');
+    return;
+  }
+  // Si es una ruta local (ejemplo: /contratante/...), extrae solo el path relativo de storage
+  let storagePath = path;
+  // Si la ruta contiene /drafts/ o /contractual/, extrae desde ahí
+  const draftsIdx = path.indexOf('drafts/');
+  const contractualIdx = path.indexOf('contractual/');
+  if (draftsIdx !== -1) {
+    storagePath = path.slice(draftsIdx);
+  } else if (contractualIdx !== -1) {
+    storagePath = path.slice(contractualIdx + 'contractual/'.length);
+  }
+  // Log para depuración
+  console.log('[openContractDocument] storagePath usado para signedUrl:', storagePath);
+  setLoading(true);
+  try {
+    const result = await createMemberDocumentSignedUrl(storagePath);
+    if (result.success && result.data) {
+      window.open(result.data, '_blank', 'noopener');
+    } else {
+      toast.error(result.error || 'No se pudo abrir el documento');
+    }
+  } catch (err) {
+    toast.error('Error inesperado al abrir el documento');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function ContractNameLink({ url, contractName }: { url: string, contractName: string }) {
+  const [loading, setLoading] = useState(false);
+  return (
+    <button
+      type="button"
+      className="text-blue-600 underline hover:text-blue-800 focus:outline-none focus:underline disabled:opacity-50"
+      onClick={() => openContractDocument(url, setLoading)}
+      disabled={loading}
+    >
+      {loading ? 'Cargando...' : contractName}
+    </button>
+  );
+}
+
 export default function DocumentsTable({ projectDocuments, searchTerm }: DocumentsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [signingRow, setSigningRow] = useState<string | null>(null);
+  const [isSigning, setIsSigning] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  // Estado local para los documentos (para actualizar contratante_signed sin recargar)
+  const [localDocuments, setLocalDocuments] = useState<ProjectDocumentGroupedByDueDate[]>(projectDocuments);
+
+  // Sincroniza localDocuments si cambian los props (ej. paginación, búsqueda)
+  useEffect(() => {
+    setLocalDocuments(projectDocuments);
+  }, [projectDocuments]);
+
+  // Obtener el user_id del usuario logueado al montar el componente
+  useEffect(() => {
+    const getUserId = async () => {
+      const supabase = createSupabaseClient();
+      const { data, error } = await supabase.auth.getUser();
+      if (data?.user?.id) {
+        setUserId(data.user.id);
+      } else {
+        setUserId(null);
+      }
+    };
+    getUserId();
+  }, []);
 
   // Filter documents based on search term
   const filteredDocuments = useMemo(() => {
-    if (!searchTerm) return projectDocuments;
-    
-    return projectDocuments.filter((doc) =>
+    if (!searchTerm) return localDocuments;
+    return localDocuments.filter((doc) =>
       doc.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (doc.contractName?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     );
-  }, [projectDocuments, searchTerm]);
+  }, [localDocuments, searchTerm]);
 
   // Calculate pagination
   const totalItems = filteredDocuments.length;
@@ -461,6 +535,38 @@ export default function DocumentsTable({ projectDocuments, searchTerm }: Documen
   const handleItemsPerPageChange = (value: string) => {
     setItemsPerPage(Number(value));
     setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  // Nueva función para firmar contrato como contratante
+  const handleContratanteSign = async (contractMemberId: string) => {
+    if (!userId) {
+      toast.error("No se pudo obtener el usuario actual. Por favor, inicia sesión de nuevo.");
+      return;
+    }
+    setIsSigning(true);
+    try {
+      const res = await fetch("/api/contract-sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractMemberId, user_id: userId, role: "contratante" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Contrato firmado exitosamente");
+        setLocalDocuments((prev) => prev.map(doc =>
+          doc.contractMemberId === contractMemberId
+            ? { ...doc, contratante_signed: true }
+            : doc
+        ));
+      } else {
+        toast.error(data.message || "Error al firmar el contrato");
+      }
+    } catch (err) {
+      toast.error("Error inesperado al firmar el contrato");
+    } finally {
+      setIsSigning(false);
+      setSigningRow(null);
+    }
   };
 
   return (
@@ -483,13 +589,20 @@ export default function DocumentsTable({ projectDocuments, searchTerm }: Documen
                   <TableHead>Estado Jurídico</TableHead>
                   <TableHead>Estado de Seguridad Social</TableHead>
                   <TableHead>Acciones</TableHead>
+                  <TableHead>Firma</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tableData.map((projectDocument: ProjectDocumentGroupedByDueDate) => (
                   <TableRow key={projectDocument.contractMemberId}>
                     <TableCell className="font-medium">{projectDocument.username}</TableCell>
-                    <TableCell className="font-medium">{projectDocument.contractName}</TableCell>
+                    <TableCell className="font-medium">
+                      {projectDocument.contractUrl || projectDocument.contractDraftUrl ? (
+                        <ContractNameLink url={projectDocument.contractUrl || projectDocument.contractDraftUrl || ''} contractName={projectDocument.contractName || ''} />
+                      ) : (
+                        projectDocument.contractName
+                      )}
+                    </TableCell>
                     <TableCell>
                       <DocumentStatusBadge projectDocument={projectDocument} />
                     </TableCell>
@@ -501,6 +614,55 @@ export default function DocumentsTable({ projectDocuments, searchTerm }: Documen
                     </TableCell>
                     <TableCell>
                       <ViewDocumentsModal projectDocument={projectDocument} />
+                    </TableCell>
+                    <TableCell>
+                      {projectDocument.contratante_signed ? (
+                        <CheckCircle2 className="text-green-500 w-5 h-5 mx-auto" />
+                      ) : (
+                        <>
+                          <button
+                            className="mx-auto flex items-center justify-center text-blue-600 hover:text-blue-800"
+                            onClick={() => setSigningRow(projectDocument.contractMemberId)}
+                            aria-label="Firmar contrato"
+                          >
+                            <PenLine className="w-5 h-5" />
+                          </button>
+                          <Dialog open={signingRow === projectDocument.contractMemberId} onOpenChange={open => { if (!open) setSigningRow(null); }}>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>¿Firmar contrato como contratante?</DialogTitle>
+                                <DialogDescription>
+                                  Al aceptar, se firmará el contrato y se insertará su firma digital en el documento. Se asume que usted ya revisó los antecedentes jurídicos y está de acuerdo con el contenido del contrato.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="default"
+                                  onClick={() => setSigningRow(null)}
+                                  disabled={isSigning}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="default"
+                                  size="default"
+                                  className="flex items-center"
+                                  onClick={() => handleContratanteSign(projectDocument.contractMemberId)}
+                                  disabled={isSigning}
+                                >
+                                  {isSigning && signingRow === projectDocument.contractMemberId ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin inline-block align-middle" />
+                                  ) : null}
+                                  {isSigning && signingRow === projectDocument.contractMemberId ? "Firmando..." : "Firmar"}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

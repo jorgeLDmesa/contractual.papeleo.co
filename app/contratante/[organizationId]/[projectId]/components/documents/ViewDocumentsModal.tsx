@@ -56,7 +56,10 @@ export type ProjectDocumentGroupedByDueDate = {
   ending?: {
     url: string;
     status: string;
-  }
+  };
+  contratante_signed?: boolean;
+  contractUrl?: string | null;
+  contractDraftUrl?: string | null;
 };
 
 export type ProjectDocumentGroupForDueDate = {

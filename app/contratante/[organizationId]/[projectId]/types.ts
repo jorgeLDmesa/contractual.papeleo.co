@@ -47,6 +47,7 @@ export interface DbContractMember {
   contract_url?: string | null
   status_juridico?: string | null
   ending?: string | null
+  contratante_signed?: boolean
   user?: DbUser | DbUser[]
   contracts?: DbContract | DbContract[]
   contractual_documents?: DbContractualDocument | DbContractualDocument[]
@@ -111,10 +112,12 @@ export interface ProjectDocument {
   username: string
   email: string
   contractUrl?: string | null
+  contractDraftUrl?: string | null
   status: string
   statusJuridico?: string | null
   ending?: string | null
   requiredDocuments: RequiredDocumentWithStatus[]
+  contratante_signed?: boolean
 }
 
 export interface RequiredDocumentWithStatus {

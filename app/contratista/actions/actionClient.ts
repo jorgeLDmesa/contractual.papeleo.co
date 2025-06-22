@@ -688,27 +688,25 @@ export const handleContractSigning = async (
   userSignature: string | null
 ): Promise<ContractSigningResponse> => {
   try {
-    // If the URL matches docgen pattern, update contract with user data
-    const regex = /^https:\/\/papeleo\.co\/docgen\//;
-    if (regex.test(contract_draft_url)) {
-      await updateContractWithUserData(contractMemberId, userData, userSignature);
-    }
-
-    // Display toast for verification
-    toast.info("Verificando antecedentes, por favor espere...");
-    
-    // Simulated verification delay
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // Sign the contract after verification
-    const signingResult = await signContract(contractMemberId, user_id);
-    
-    return signingResult;
+    // Llama a la server action (o endpoint) que ejecuta la lógica de firma y Google Docs en el backend
+    const response = await fetch('/api/contract-sign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contractMemberId,
+        user_id,
+        contract_draft_url,
+        userData,
+        userSignature
+      })
+    });
+    const result = await response.json();
+    return result;
   } catch (error) {
-    console.error("Error in contract signing process:", error);
+    console.error('Error in contract signing process:', error);
     return {
       success: false,
-      message: "Ocurrió un error inesperado durante el proceso de firma"
+      message: 'Ocurrió un error inesperado durante el proceso de firma'
     };
   }
 };
@@ -767,4 +765,6 @@ export const hasDataChanges = (
 ): boolean => {
   if (!originalData) return true;
   return !deepEqual(formData, originalData);
-}; 
+};
+
+export { createMemberDocumentSignedUrl }; 

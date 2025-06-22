@@ -293,7 +293,8 @@ export function CreateContractModal({ projectId, onContractCreated }: CreateCont
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            objetoParafraseado: objetoContractual
+            objetoParafraseado: objetoContractual,
+            nombreContrato: newContract.name
           }),
         });
 

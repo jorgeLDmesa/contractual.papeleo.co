@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
         // Obtener el input del usuario
     const body = await request.json();
-    const { objetoParafraseado } = body;
+    const { objetoParafraseado, nombreContrato } = body;
 
     if (!objetoParafraseado) {
       return NextResponse.json(
@@ -18,26 +18,39 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Usar la misma estructura de autenticación que add-to-sheet
+    // Usar la misma estructura de autenticación que add-to-sheet, pero con scopes de Drive
     const serviceAccountAuth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
         private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       },
-      scopes: ['https://www.googleapis.com/auth/documents'],
+      scopes: [
+        'https://www.googleapis.com/auth/documents',
+        'https://www.googleapis.com/auth/drive'
+      ],
     });
 
-    // Crear cliente de Google Docs
+    // Crear cliente de Google Docs y Google Drive
     const docs = google.docs({ version: 'v1', auth: serviceAccountAuth });
+    const drive = google.drive({ version: 'v3', auth: serviceAccountAuth });
 
-    const documentId = '1_OiSHZxNf1LdiAQOj-GLWVQe7svbktD9CSJkSkk8g2M';
+    // Crear un nuevo documento en la carpeta de Drive indicada
+    const file = await drive.files.create({
+      requestBody: {
+        name: nombreContrato || 'Contrato generado',
+        mimeType: 'application/vnd.google-apps.document',
+        parents: ['1KE706IBz1TZMLd6_q2WdMx7K8HIt6JyJ'],
+      },
+      fields: 'id',
+    });
+    const documentId = file.data.id;
+    if (!documentId) throw new Error('No se pudo crear el documento en Google Drive');
 
     // Obtener el documento para saber dónde insertar la tabla
-    const doc = await docs.documents.get({
-      documentId,
-    });
+    const docRes = await docs.documents.get({ documentId });
+    const doc = docRes.data;
 
-    const endIndex = doc.data.body?.content?.[doc.data.body.content.length - 1]?.endIndex || 1;
+    const endIndex = doc.body?.content?.[doc.body.content.length - 1]?.endIndex || 1;
 
     // Datos para la tabla (13 filas x 2 columnas)
     const tablaDatos = [
@@ -75,13 +88,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Paso 2: Obtener el documento actualizado para encontrar los índices de las celdas
-    const updatedDoc = await docs.documents.get({
-      documentId,
-    });
+    const updatedDocRes = await docs.documents.get({ documentId });
+    const updatedDoc = updatedDocRes.data;
 
     // Encontrar la tabla recién creada
     let tableElement = null;
-    for (const element of updatedDoc.data.body?.content || []) {
+    for (const element of updatedDoc.body?.content || []) {
       if (element.table) {
         tableElement = element;
         break;
@@ -134,13 +146,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Paso 4: Obtener el documento actualizado para calcular los nuevos índices
-    const finalDoc = await docs.documents.get({
-      documentId,
-    });
+    const finalDocRes = await docs.documents.get({ documentId });
+    const finalDoc = finalDocRes.data;
 
     // Encontrar la tabla actualizada
     let updatedTableElement = null;
-    for (const element of finalDoc.data.body?.content || []) {
+    for (const element of finalDoc.body?.content || []) {
       if (element.table) {
         updatedTableElement = element;
         break;
@@ -218,11 +229,10 @@ Redacta un objeto contractual profesional y completo basado en la información p
     // Paso 6: Insertar el texto generado después de la tabla
     
     // Obtener el documento final para encontrar dónde insertar el texto
-    const docForText = await docs.documents.get({
-      documentId,
-    });
+    const docForTextRes = await docs.documents.get({ documentId });
+    const docForText = docForTextRes.data;
 
-    const endIndexForText = docForText.data.body?.content?.[docForText.data.body.content.length - 1]?.endIndex || 1;
+    const endIndexForText = docForText.body?.content?.[docForText.body.content.length - 1]?.endIndex || 1;
 
     // Insertar salto de línea y el texto del objeto contractual
     await docs.documents.batchUpdate({
@@ -242,11 +252,10 @@ Redacta un objeto contractual profesional y completo basado en la información p
     });
 
     // Paso 7: Aplicar formato Times New Roman 12 al texto insertado
-    const docAfterText = await docs.documents.get({
-      documentId,
-    });
+    const docAfterTextRes = await docs.documents.get({ documentId });
+    const docAfterText = docAfterTextRes.data;
 
-    const finalEndIndex = docAfterText.data.body?.content?.[docAfterText.data.body.content.length - 1]?.endIndex || 1;
+    const finalEndIndex = docAfterText.body?.content?.[docAfterText.body.content.length - 1]?.endIndex || 1;
     const textLength = `\n\nOBJETO CONTRACTUAL:\n\n${objetoContractual}`.length;
     const textStartIndex = finalEndIndex - textLength - 1;
 

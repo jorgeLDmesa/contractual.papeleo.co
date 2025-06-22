@@ -37,16 +37,13 @@ export default function DocumentCards({
   const preContractReady = !!contractStatus.precontractual;
   const signedReady = !!contractStatus.signed;
   const isDigitalDisabled = !preContractReady;
-  const isTrackingDisabled = !preContractReady || (preContractReady && !signedReady);
+  const isTrackingDisabled = !preContractReady || (preContractReady && !signedReady) || !currentContract?.contratanteSigned;
 
   // Handler para ver documento firmado
-  const handleViewSignedDocument = () => {
-    if (currentContract?.contractDraftUrl && selectedContract) {
-      handleDocumentView(
-        currentContract.contractDraftUrl, 
-        selectedContract,
-        false
-      );
+  const handleViewSignedDocument = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (currentContract?.contractUrl && selectedContract) {
+      window.open(currentContract.contractUrl, '_blank');
     }
   };
 
@@ -129,13 +126,14 @@ export default function DocumentCards({
                 description="Accede y firma tu contrato electrónicamente"
                 icon={<FileText className="h-8 w-8" />}
                 color="text-green-600"
-                link={`#`}
+                link={currentContract.contractUrl || '#'}
                 status={{ text: "Firmado", color: "default" }}
               />
             </div>
           ) : (
             <ContractDialog
               contract_draft_url={currentContract.contractDraftUrl || ''}
+              contract_url={currentContract.contractUrl || ''}
               user_id={user?.id || ''}
               contractMemberId={selectedContract}
               onSignSuccess={onSignSuccess}
@@ -165,6 +163,8 @@ export default function DocumentCards({
               toast.error("Primero debes subir los precontractuales");
             } else if (!signedReady) {
               toast.error("Primero debes firmar el contrato");
+            } else if (!currentContract?.contratanteSigned) {
+              toast.error("El contratante aún no ha firmado el contrato. Debes esperar su firma para continuar.");
             }
           }}
           className="opacity-50 cursor-not-allowed"

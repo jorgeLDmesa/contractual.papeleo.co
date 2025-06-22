@@ -34,9 +34,10 @@ interface ContractDialogProps {
   user_id: string
   contractMemberId: string
   onSignSuccess?: () => void
+  contract_url?: string | null
 }
 
-export default function ContractDialog({ contract_draft_url, children, user_id, contractMemberId, onSignSuccess }: ContractDialogProps) {
+export default function ContractDialog({ contract_draft_url, children, user_id, contractMemberId, onSignSuccess, contract_url }: ContractDialogProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [showSignOption, setShowSignOption] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -114,6 +115,14 @@ export default function ContractDialog({ contract_draft_url, children, user_id, 
   };
 
   const handleViewDocument = async () => {
+    // Si existe contract_url (el duplicado personalizado), abrirlo directamente
+    if (contract_url) {
+      window.open(contract_url, '_blank');
+      // Cargar datos de usuario y mostrar opción de firma
+      fetchUserData();
+      setTimeout(() => setShowSignOption(true), 500);
+      return;
+    }
     if (contract_draft_url) {
       // Check for two different cases:
       // 1. URL starts with https://papeleo.co/docgen/ (template-generated)
