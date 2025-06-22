@@ -501,7 +501,7 @@ export default function DocumentsTable({ projectDocuments, searchTerm }: Documen
   useEffect(() => {
     const getUserId = async () => {
       const supabase = createSupabaseClient();
-      const { data, error } = await supabase.auth.getUser();
+      const { data } = await supabase.auth.getUser();
       if (data?.user?.id) {
         setUserId(data.user.id);
       } else {
